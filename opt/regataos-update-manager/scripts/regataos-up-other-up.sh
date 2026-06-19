@@ -23,14 +23,14 @@ if [[ $(grep -r "other-updates" "/tmp/regataos-update/list-apps-queue.txt") == *
         export LC_ALL="en_US.UTF-8"
         export LANG="en_US.UTF-8"
         export LANGUAGE="en_US"
-        retry -r 20 -- zypper --non-interactive up --allow-downgrade regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
+        retry -r 20 -- zypper --non-interactive up --allow-downgrade --replacefiles regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
     } 2>&1 | tee "/var/log/regataos-logs/regataos-other-updates.log"
 
     {
         export LC_ALL="en_US.UTF-8"
         export LANG="en_US.UTF-8"
         export LANGUAGE="en_US"
-        retry -r 20 -- zypper --non-interactive --no-gpg-checks update --allow-downgrade --auto-agree-with-licenses $(cat /tmp/regataos-update/package-list.txt | tr '\n' ' ')
+        retry -r 20 -- zypper --non-interactive --no-gpg-checks update --allow-downgrade --replacefiles --auto-agree-with-licenses $(cat /tmp/regataos-update/package-list.txt | tr '\n' ' ')
     } 2>&1 | tee "/var/log/regataos-logs/regataos-other-updates.log"
 
     # Run additional application settings

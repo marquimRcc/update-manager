@@ -24,14 +24,14 @@ if [[ $(grep -r "other-updates" "/tmp/regataos-update/updated-apps.txt") != *"ot
             export LC_ALL="en_US.UTF-8"
             export LANG="en_US.UTF-8"
             export LANGUAGE="en_US"
-            retry -r 20 -- zypper --non-interactive up --allow-downgrade regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
+            retry -r 20 -- zypper --non-interactive up --allow-downgrade --replacefiles regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
         } 2>&1 | tee "/var/log/regataos-logs/regataos-other-updates.log"
 
         {
             export LC_ALL="en_US.UTF-8"
             export LANG="en_US.UTF-8"
             export LANGUAGE="en_US"
-            retry -r 20 -- zypper --non-interactive --no-gpg-checks update --allow-downgrade --auto-agree-with-licenses
+            retry -r 20 -- zypper --non-interactive --no-gpg-checks update --allow-downgrade --replacefiles --auto-agree-with-licenses
         } 2>&1 | tee "/var/log/regataos-logs/regataos-other-updates.log"
 
         echo "" >"/tmp/regataos-update/downloadable-application-other-updates.txt"

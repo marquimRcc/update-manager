@@ -44,17 +44,17 @@ function update_all_apps() {
     fi
 
     if [ -z $download_link ]; then
-        version=$(zypper --non-interactive info $package_name | grep Ver | awk '{print $3}')
+        version=$(zypper --non-interactive info $package_name | grep Ver | awk '{print $3}' | tail -1)
         app_download_file_name="$package_name-$version.$architecture.rpm"
         app_download_link="$repo_link/$architecture/$app_download_file_name"
 
     elif [[ $download_link == *"undefined"* ]]; then
-        version=$(zypper --non-interactive info $package_name | grep Ver | awk '{print $3}')
+        version=$(zypper --non-interactive info $package_name | grep Ver | awk '{print $3}' | tail -1)
         app_download_file_name="$package_name-$version.$architecture.rpm"
         app_download_link="$repo_link/$app_download_file_name"
 
     else
-        version=$(zypper --non-interactive info $package_name | grep Ver | awk '{print $3}' | sed "s/-0//")
+        version=$(zypper --non-interactive info $package_name | grep Ver | awk '{print $3}' | tail -1 | sed "s/-0//")
         app_download_file_name="$package_name-$version.$architecture.rpm"
         app_download_link=$(echo $download_link | sed "s/\[version\]/$version/")
     fi
@@ -89,7 +89,7 @@ function update_all_apps() {
         echo "" >"/tmp/regataos-update/installation-in-progress.txt"
         cd /tmp/regataos-update/
         {
-            sudo zypper --non-interactive --no-gpg-checks install --allow-downgrade --auto-agree-with-licenses $app_download_file_name
+            sudo zypper --non-interactive --no-gpg-checks install --allow-downgrade --replacefiles --auto-agree-with-licenses $app_download_file_name
         } 2>&1 | tee -a "/var/log/regataos-logs/regataos-update-$package_name.log"
 
         # Run additional application settings
