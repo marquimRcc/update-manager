@@ -4,9 +4,9 @@
   "version": "4.0.0",
   "main": "www/index.html",
   "inject_js_start": "",
-  "inject_js_end": "www/js/search.js",
+  "inject_js_end": "",
   "window": {
-    "show": false,
+    "show": true,
     "toolbar": false,
     "position": "center",
     "width": 920,

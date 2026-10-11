@@ -8,41 +8,130 @@
 	<link rel="stylesheet" type="text/css" href="./../css/style.css">
 </head>
 
-<body onclick="hideSpecifiedMenu();">
+<body onclick="hideSpecifiedMenu();" style="overflow-y: auto;">
 	<div id="loadscreen" class="loadscreen-page"></div>
-	<div class="main">
+	<div class="main main-settings">
 		<div class="div1-settings">
 			<h1>Regata OS Update</h1>
 			<div class="div1-sub">
 				<div class="apps-settings">Settings</div>
 			</div>
+			<!-- Settings Tabs Header -->
+			<div class="settings-tabs-header">
+				<button id="tab-btn-general" class="settings-tab-btn active" onclick="switchSettingsTab('general')">
+					<svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm112-280q50 0 85-35t35-85q0-50-35-85t-85-35q-50 0-85 35t-35 85q0 50 35 85t85 35Z"/></svg>
+					<span class="tab-label-general">Geral</span>
+				</button>
+				<button id="tab-btn-mirrors" class="settings-tab-btn" onclick="switchSettingsTab('mirrors')">
+					<svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18"><path d="M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155t-86 127.5q-54.5 54.5-127 86T480-80Zm0-82q26-36 45-75t31-83H404q12 44 31 83t45 75Zm-104-16q-18-33-31.5-68.5T322-320H204q29 50 70.5 87.5T376-178Zm208 0q59-26 100.5-63.5T756-320H638q-9 38-22.5 73.5T584-178ZM170-400h136q-3-20-4.5-39.5T300-480q0-21 1.5-40.5T306-560H170q-5 20-7.5 39.5T160-480q0 21 2.5 40.5T170-400Zm216 0h188q3-20 4.5-39.5T580-480q0-21-1.5-40.5T574-560H386q-3 20-4.5-39.5T380-480q0 21 1.5-40.5T386-400Zm268 0h136q5-20 7.5-39.5T800-480q0-21-2.5-40.5T790-560H654q3 20 4.5-39.5T660-480q0 21-1.5-40.5T654-400Zm-70-240h118q-41-47-82.5-84.5T584-782q18 33 31.5 68.5T638-640Zm-234 0h152q-12-44-31-83t-45-75q-26 36-45 75t-31 83Zm-82 0h118q9-38 22.5-73.5T376-782q-59 26-100.5 63.5T204-640Z"/></svg>
+					<span class="tab-label-mirrors">Servidores de Download</span>
+				</button>
+			</div>
 		</div>
 
 		<div class="div2-settings">
-			<div class="up-apps-auto">Automatic updates</div>
-			<div class="up-apps-auto-select">
-				<button class="button-settings" id="select-update-config"
-					onclick="showSpecifiedMenu(this.id, 'update-config-menu')">
-					<span></span>
-					<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24">
-						<path
-							d="M480-372.924q-7.231 0-13.461-2.308-6.231-2.307-11.846-7.923L274.924-562.924q-8.308-8.307-8.5-20.884-.193-12.576 8.5-21.268 8.692-8.693 21.076-8.693t21.076 8.693L480-442.153l162.924-162.923q8.307-8.308 20.884-8.5 12.576-.193 21.268 8.5 8.693 8.692 8.693 21.076t-8.693 21.076L505.307-383.155q-5.615 5.616-11.846 7.923-6.23 2.308-13.461 2.308Z" />
-					</svg>
-				</button>
-				<div class="context-menu" id="update-config-menu">
-					<div id="automatic-update"
-						onclick="showSpecifiedMenu('select-update-config', 'update-config-menu', this.id); selectAutoUpdate('1')">
-						<span class="up-on"></span>
+			<!-- PANE 1: GERAL -->
+			<div id="settings-pane-general" class="settings-tab-pane">
+				<div class="settings-section-card">
+					<div class="up-apps-auto">Automatic updates</div>
+					<div class="general-setting-subtitle">Defina como e quando o sistema deve verificar novas atualizações.</div>
+					<div class="up-apps-auto-select">
+						<button class="button-settings" id="select-update-config"
+							onclick="showSpecifiedMenu(this.id, 'update-config-menu')">
+							<span></span>
+							<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24">
+								<path
+									d="M480-372.924q-7.231 0-13.461-2.308-6.231-2.307-11.846-7.923L274.924-562.924q-8.308-8.307-8.5-20.884-.193-12.576 8.5-21.268 8.692-8.693 21.076-8.693t21.076 8.693L480-442.153l162.924-162.923q8.307-8.308 20.884-8.5 12.576-.193 21.268 8.5 8.693 8.692 8.693 21.076t-8.693 21.076L505.307-383.155q-5.615 5.616-11.846 7.923-6.23 2.308-13.461 2.308Z" />
+							</svg>
+						</button>
+						<div class="context-menu" id="update-config-menu">
+							<div id="automatic-update"
+								onclick="showSpecifiedMenu('select-update-config', 'update-config-menu', this.id); selectAutoUpdate('1')">
+								<span class="up-on"></span>
+							</div>
+							<div class="division-options"></div>
+							<div id="search-update"
+								onclick="showSpecifiedMenu('select-update-config', 'update-config-menu', this.id); selectAutoUpdate('2')">
+								<span class="up-only"></span>
+							</div>
+							<div class="division-options"></div>
+							<div id="never-check-update"
+								onclick="showSpecifiedMenu('select-update-config', 'update-config-menu', this.id); selectAutoUpdate('3')">
+								<span class="up-off"></span>
+							</div>
+						</div>
 					</div>
-					<div class="division-options"></div>
-					<div id="search-update"
-						onclick="showSpecifiedMenu('select-update-config', 'update-config-menu', this.id); selectAutoUpdate('2')">
-						<span class="up-only"></span>
+				</div>
+
+				<!-- Explanatory cards for update policy -->
+				<div class="general-policy-cards">
+					<div class="policy-card">
+						<div class="policy-card-header">
+							<span class="policy-card-icon">⚡</span>
+							<span class="policy-card-title up-on-card-title">Atualizar automaticamente</span>
+						</div>
+						<div class="policy-card-desc up-on-card-desc">O sistema baixa e prepara atualizações periodicamente em segundo plano, mantendo tudo sempre em dia.</div>
 					</div>
-					<div class="division-options"></div>
-					<div id="never-check-update"
-						onclick="showSpecifiedMenu('select-update-config', 'update-config-menu', this.id); selectAutoUpdate('3')">
-						<span class="up-off"></span>
+					<div class="policy-card">
+						<div class="policy-card-header">
+							<span class="policy-card-icon">🔍</span>
+							<span class="policy-card-title up-only-card-title">Apenas procurar atualizações</span>
+						</div>
+						<div class="policy-card-desc up-only-card-desc">Verifica se há novos pacotes e exibe uma notificação para você autorizar o download quando quiser.</div>
+					</div>
+					<div class="policy-card">
+						<div class="policy-card-header">
+							<span class="policy-card-icon">⏸️</span>
+							<span class="policy-card-title up-off-card-title">Nunca procurar</span>
+						</div>
+						<div class="policy-card-desc up-off-card-desc">Desativa consultas automáticas. O sistema só buscará atualizações se você clicar manualmente em verificar.</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- PANE 2: SERVIDORES -->
+			<div id="settings-pane-mirrors" class="settings-tab-pane" style="display: none;">
+				<!-- Active Mirror Summary Card -->
+				<div class="mirror-active-card">
+					<div class="mirror-active-icon">
+						<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20"><path d="M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155t-86 127.5q-54.5 54.5-127 86T480-80Zm0-82q26-36 45-75t31-83H404q12 44 31 83t45 75Zm-104-16q-18-33-31.5-68.5T322-320H204q29 50 70.5 87.5T376-178Zm208 0q59-26 100.5-63.5T756-320H638q-9 38-22.5 73.5T584-178ZM170-400h136q-3-20-4.5-39.5T300-480q0-21 1.5-40.5T306-560H170q-5 20-7.5 39.5T160-480q0 21 2.5 40.5T170-400Zm216 0h188q3-20 4.5-39.5T580-480q0-21-1.5-40.5T574-560H386q-3 20-4.5-39.5T380-480q0 21 1.5-40.5T386-400Zm268 0h136q5-20 7.5-39.5T800-480q0-21-2.5-40.5T790-560H654q3 20 4.5-39.5T660-480q0 21-1.5-40.5T654-400Zm-70-240h118q-41-47-82.5-84.5T584-782q18 33 31.5 68.5T638-640Zm-234 0h152q-12-44-31-83t-45-75q-26 36-45 75t-31 83Zm-82 0h118q9-38 22.5-73.5T376-782q-59 26-100.5 63.5T204-640Z"/></svg>
+					</div>
+					<div class="mirror-active-info">
+						<div class="mirror-active-row">
+							<span class="mirror-active-tag">Servidor Ativo</span>
+							<span id="mirror-active-display" class="mirror-active-name">UFPR C3SL (Brasil - Curitiba)</span>
+						</div>
+						<div class="mirror-active-desc">Os pacotes e repositórios do sistema são baixados a partir deste servidor.</div>
+					</div>
+				</div>
+
+				<!-- Mirror Diagnostics Table -->
+				<div class="mirror-diag-section">
+					<div class="mirror-diag-header-row">
+						<div class="mirror-diag-title">Diagnóstico de servidores</div>
+						<div class="mirror-test-actions">
+							<span id="mirror-test-summary" class="mirror-test-summary"></span>
+							<button id="btn-test-mirrors" class="btn-test-mirrors" onclick="testAllMirrors();">
+								<svg class="icon-refresh" xmlns="http://www.w3.org/2000/svg" height="15" viewBox="0 -960 960 960" width="15">
+									<path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z"/>
+								</svg>
+								<span id="btn-test-mirrors-text">Testar velocidade</span>
+							</button>
+						</div>
+					</div>
+					<div class="mirror-table-container">
+						<table class="table-bench">
+							<thead>
+								<tr>
+									<th class="th-server">Servidor</th>
+									<th class="th-ping">Latência</th>
+									<th class="th-speed">Velocidade</th>
+									<th class="th-action">Ação</th>
+								</tr>
+							</thead>
+							<tbody id="mirror-bench-tbody">
+							</tbody>
+						</table>
 					</div>
 				</div>
 			</div>
