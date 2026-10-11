@@ -91,21 +91,11 @@ function update_button() {
     echo "" >"/tmp/regataos-update/installing-system-update.txt"
     echo "" >"/tmp/regataos-update/downloading-system-update.txt"
 
-    if test ! -e "/tmp/regataos-update/already_updated.txt"; then
-        ps -C zypper >/dev/null
-        if [ $? = 1 ]; then
-            rm -f "/tmp/regataos-update/status.txt"
-            sudo /opt/regataos-update-manager/scripts/regataos-up.sh -check-up-config
-        fi
-    else
-        if test -e "/tmp/regataos-update/status.txt"; then
-            check_current_status=$(cat "/tmp/regataos-update/status.txt")
-            if [[ $(echo "$check_current_status") != *"check-updates"* ]]; then
-                echo "show-updates" >"/tmp/regataos-update/status.txt"
-            fi
-        else
-            echo "show-updates" >"/tmp/regataos-update/status.txt"
-        fi
+    ps -C zypper >/dev/null
+    if [ $? = 1 ]; then
+        rm -f "/tmp/regataos-update/already_updated.txt"
+        rm -f "/tmp/regataos-update/status.txt"
+        sudo /opt/regataos-update-manager/scripts/regataos-up.sh -check-now
     fi
 }
 
@@ -122,6 +112,9 @@ case $1 in
     ;;
 "-update-button")
     update_button
+    ;;
+"-set-mirror")
+    /opt/regataos-update-manager/scripts/set-mirror.sh "$2"
     ;;
 *)
     echo "Invalid option!"
