@@ -2,36 +2,45 @@
 
 # This script is used by the "Regata OS Update" application to update other updates.
 
+source "/opt/regataos-update-manager/scripts/regataos-update-healing.sh"
+
 if test -e "/tmp/regataos-update/stop-all-update.txt"; then
     rm -f "/tmp/regataos-update/stop-all-update.txt"
     exit
 fi
 
+# Ensure locks are clear before starting
+check_and_release_zypp_locks 15
+
 if [[ $(grep -r "other-updates" "/tmp/regataos-update/list-apps-queue.txt") == *"other-updates"* ]]; then
+    echo "installing-updates" >"/tmp/regataos-update/status.txt"
     echo "" >"/tmp/regataos-update/list-apps-queue.txt"
     echo "other-updates" >"/tmp/regataos-update/downloadable-application-other-updates.txt"
 
     echo "" >"/tmp/regataos-update/update-in-progress.txt"
-    echo "" >"/tmp/regataos-update/other-updates-in-progress.txt"
+    echo "other-updates" >"/tmp/regataos-update/other-updates-in-progress.txt"
 
     echo "" >"/tmp/regataos-update/installing-application-other-updates.txt"
 
+    rm -f "/var/log/regataos-logs/regataos-other-updates.log"
+    touch "/var/log/regataos-logs/regataos-other-updates.log"
+    chmod 777 "/var/log/regataos-logs/regataos-other-updates.log"
+
+    export HEALING_PIPE_LOG="/var/log/regataos-logs/regataos-other-updates.log"
+
     # Fix YaST2 installation
-    sudo zypper --non-interactive rm ruby2.5 ruby2.5-rubygem-abstract_method ruby2.5-rubygem-cfa ruby2.5-rubygem-cfa_grub2 ruby2.5-rubygem-cheetah ruby2.5-rubygem-fast_gettext ruby2.5-rubygem-gem2rpm ruby2.5-rubygem-mini_portile2 ruby2.5-rubygem-nokogiri ruby2.5-rubygem-ruby-augeas ruby2.5-rubygem-ruby-dbus ruby2.5-rubygem-simpleidn ruby2.5-stdlib yast2-snapper
+    sudo zypper --non-interactive rm ruby2.5 ruby2.5-rubygem-abstract_method ruby2.5-rubygem-cfa ruby2.5-rubygem-cfa_grub2 ruby2.5-rubygem-cheetah ruby2.5-rubygem-fast_gettext ruby2.5-rubygem-gem2rpm ruby2.5-rubygem-mini_portile2 ruby2.5-rubygem-nokogiri ruby2.5-rubygem-ruby-augeas ruby2.5-rubygem-ruby-dbus ruby2.5-rubygem-simpleidn ruby2.5-stdlib yast2-snapper 2>/dev/null
 
-    {
-        export LC_ALL="en_US.UTF-8"
-        export LANG="en_US.UTF-8"
-        export LANGUAGE="en_US"
-        retry -r 20 -- zypper --non-interactive up --allow-downgrade --replacefiles regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
-    } 2>&1 | tee "/var/log/regataos-logs/regataos-other-updates.log"
+    run_zypper_resilient in --allow-downgrade --replacefiles ruby ruby3.4 ruby3.4-rubygem-abstract_method ruby3.4-rubygem-cfa ruby3.4-rubygem-cheetah ruby3.4-rubygem-fast_gettext ruby3.4-rubygem-gem2rpm ruby3.4-rubygem-nokogiri ruby3.4-rubygem-ruby-augeas ruby3.4-rubygem-ruby-dbus ruby3.4-rubygem-simpleidn ruby-common yast2 yast2-country-data yast2-hardware-detection yast2-packager yast2-ruby-bindings yast2-storage-ng yast2-transfer
 
-    {
-        export LC_ALL="en_US.UTF-8"
-        export LANG="en_US.UTF-8"
-        export LANGUAGE="en_US"
-        retry -r 20 -- zypper --non-interactive --no-gpg-checks update --allow-downgrade --replacefiles --auto-agree-with-licenses $(cat /tmp/regataos-update/package-list.txt | tr '\n' ' ')
-    } 2>&1 | tee "/var/log/regataos-logs/regataos-other-updates.log"
+    run_zypper_resilient up --allow-downgrade --replacefiles regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
+
+    # Perform package update with resilient auto-healing and --download-as-needed
+    if [ -s "/tmp/regataos-update/package-list.txt" ]; then
+        run_zypper_resilient update --allow-downgrade --replacefiles --auto-agree-with-licenses $(cat /tmp/regataos-update/package-list.txt | tr '\n' ' ')
+    else
+        run_zypper_resilient update --allow-downgrade --replacefiles --auto-agree-with-licenses
+    fi
 
     # Run additional application settings
     if test -e "/tmp/regataos-prime/config/regataos-prime.conf"; then
@@ -54,6 +63,9 @@ if [[ $(grep -r "other-updates" "/tmp/regataos-update/list-apps-queue.txt") == *
 
     sed -i "s/other-updates//" "/tmp/regataos-update/apps-list.txt"
     sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt"
+
+    echo "All packages have been updated" >>"/var/log/regataos-logs/regataos-other-updates.log"
+    sleep 1
 
     rm -f "/tmp/regataos-update/update-in-progress.txt"
     rm -f "/tmp/regataos-update/other-updates-in-progress.txt"

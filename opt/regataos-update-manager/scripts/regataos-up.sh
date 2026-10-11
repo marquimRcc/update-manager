@@ -1,5 +1,35 @@
 #!/bin/bash
 
+# Handle setting mirror immediately without acquiring update lock
+if [[ "$1" == "-set-mirror" ]]; then
+    /opt/regataos-update-manager/scripts/set-mirror.sh "$2"
+    exit 0
+fi
+
+# Handle stopping updates immediately without waiting for lock
+if [[ "$1" == "-stop-up" ]]; then
+    echo "never-updates" >"/tmp/regataos-update/status.txt"
+    rm -f "/tmp/regataos-update/all-auto-update.txt"
+    rm -f "/tmp/regataos-update/install-updates.txt"
+    echo "" >"/tmp/regataos-update/stop-all-update.txt"
+    sudo /opt/regataos-update-manager/scripts/regataos-up-cancel-all.sh 2>/dev/null
+
+    ps -C rpm >/dev/null
+    if [ $? = 1 ]; then
+        pkill -9 -f "zypper" 2>/dev/null
+        rm -f "/var/run/zypp.pid" 2>/dev/null
+        pkill -9 -f "retry" 2>/dev/null
+        for pid in $(pgrep -f "regataos-up.sh"); do
+            if [ "$pid" != "$$" ]; then
+                kill -9 "$pid" 2>/dev/null
+            fi
+        done
+        echo "never-updates" >"/tmp/regataos-update/status.txt"
+        exit 0
+    fi
+    exit 0
+fi
+
 # Prevent multiple simultaneous instances
 LOCKFILE="/tmp/regataos-up.lock"
 exec 9>"$LOCKFILE"
@@ -7,6 +37,23 @@ if ! flock -n 9; then
     echo "regataos-up.sh is already running. Exiting."
     exit 0
 fi
+
+cleanup_on_exit() {
+    if [ -f "/tmp/regataos-update/status.txt" ]; then
+        local st
+        st=$(cat "/tmp/regataos-update/status.txt" 2>/dev/null)
+        if [[ "$st" == *"check-updates"* ]]; then
+            if [ -s "/tmp/regataos-update/package-list.txt" ]; then
+                echo "show-updates" >"/tmp/regataos-update/status.txt"
+            else
+                echo "no-updates" >"/tmp/regataos-update/status.txt"
+            fi
+        fi
+    fi
+}
+trap cleanup_on_exit EXIT
+
+source "/opt/regataos-update-manager/scripts/regataos-update-healing.sh"
 
 # This script is used by the "Regata OS Update" application to update the
 # local cache of software repositories, list available package updates and
@@ -35,6 +82,9 @@ function search_update() {
         killall check-update.py
         exit 0
     else
+        if [[ "$force_check" == "1" || "$1" == "-check-now" ]]; then
+            rm -f "/tmp/regataos-update/already_updated.txt"
+        fi
         if test ! -e "/tmp/regataos-update/already_updated.txt"; then
             if test ! -e "/tmp/regataos-update/update-in-progress.txt"; then
                 if test ! -e "/tmp/regataos-update/other-updates-in-progress.txt"; then
@@ -56,25 +106,36 @@ function search_update() {
 
                         # Create file with current status
                         auto_up_config=$(grep -r "autoupdate=" /tmp/regataos-update/config/regataos-update.conf | cut -d"=" -f 2-)
-                        if [[ $(echo "$auto_up_config") == *"3"* ]]; then
+                        if [[ "$force_check" == "1" || "$1" == "-check-now" ]]; then
+                            echo "check-updates" >"/tmp/regataos-update/status.txt"
+                        elif [[ $(echo "$auto_up_config") == *"3"* ]]; then
                             echo "never-updates" >"/tmp/regataos-update/status.txt"
                             exit 0
                         else
                             check_status=$(cat "/tmp/regataos-update/status.txt")
                             if [[ $(echo "$check_status") == *"show-updates"* ]]; then
                                 exit 0
-                            elif [[ $(echo "$check_status") == *"check-updates"* ]]; then
-                                exit 0
                             else
                                 echo "check-updates" >"/tmp/regataos-update/status.txt"
                             fi
                         fi
 
+                        # Release locks and refresh repositories
+                        check_and_release_zypp_locks 15
+
+                        rm -f "/var/log/regataos-logs/regataos-refresh-repo.log"
+                        touch "/var/log/regataos-logs/regataos-refresh-repo.log"
+                        chmod 777 "/var/log/regataos-logs/regataos-refresh-repo.log"
+
                         {
                             export LC_ALL="en_US.UTF-8"
                             export LANG="en_US.UTF-8"
                             export LANGUAGE="en_US"
-                            retry -r 5 -- zypper --non-interactive --no-gpg-checks refresh
+                            zypper --non-interactive --no-gpg-checks refresh
+                            ref_status=$?
+                            if [ $ref_status -ne 0 ]; then
+                                echo "[$(date '+%Y-%m-%d %H:%M:%S')] Aviso: zypper refresh retornou código $ref_status (alguns repositórios podem estar temporariamente inacessíveis)."
+                            fi
                         } 2>&1 | tee "/var/log/regataos-logs/regataos-refresh-repo.log"
 
                         {
@@ -154,7 +215,7 @@ function search_update() {
                                 echo "There are $number_packages apps to update"
                                 echo "($number_packages)" >"/tmp/regataos-update/number-packages.txt"
                                 echo "" >"/tmp/regataos-update/already_updated.txt"
-                                if [[ $(echo "$auto_up_config") == *"2"* ]]; then
+                                if [[ "$force_check" == "1" || $(echo "$auto_up_config") == *"2"* || $(echo "$auto_up_config") == *"1"* ]]; then
                                     echo "show-updates" >"/tmp/regataos-update/status.txt"
                                 fi
                             fi
@@ -181,7 +242,7 @@ function search_update() {
                                     echo "There are $(($number_apps + 1)) apps to update"
                                     echo "($(($number_apps + 1)))" >"/tmp/regataos-update/number-apps.txt"
                                     echo "" >"/tmp/regataos-update/already_updated.txt"
-                                    if [[ $(echo "$auto_up_config") == *"2"* ]]; then
+                                    if [[ "$force_check" == "1" || $(echo "$auto_up_config") == *"2"* || $(echo "$auto_up_config") == *"1"* ]]; then
                                         echo "show-updates" >"/tmp/regataos-update/status.txt"
                                     fi
 
@@ -189,7 +250,7 @@ function search_update() {
                                     echo "There are $number_apps apps to update"
                                     echo "($number_apps)" >"/tmp/regataos-update/number-apps.txt"
                                     echo "" >"/tmp/regataos-update/already_updated.txt"
-                                    if [[ $(echo "$auto_up_config") == *"2"* ]]; then
+                                    if [[ "$force_check" == "1" || $(echo "$auto_up_config") == *"2"* || $(echo "$auto_up_config") == *"1"* ]]; then
                                         echo "show-updates" >"/tmp/regataos-update/status.txt"
                                     fi
                                 fi
@@ -229,22 +290,18 @@ function search_update() {
 
 # Update packages
 function update_packages() {
+    check_and_release_zypp_locks 15
+
     # Fix YaST2 installation
-    sudo zypper --non-interactive rm ruby2.5 ruby2.5-rubygem-abstract_method ruby2.5-rubygem-cfa ruby2.5-rubygem-cfa_grub2 ruby2.5-rubygem-cheetah ruby2.5-rubygem-fast_gettext ruby2.5-rubygem-gem2rpm ruby2.5-rubygem-mini_portile2 ruby2.5-rubygem-nokogiri ruby2.5-rubygem-ruby-augeas ruby2.5-rubygem-ruby-dbus ruby2.5-rubygem-simpleidn ruby2.5-stdlib yast2-snapper
+    sudo zypper --non-interactive rm ruby2.5 ruby2.5-rubygem-abstract_method ruby2.5-rubygem-cfa ruby2.5-rubygem-cfa_grub2 ruby2.5-rubygem-cheetah ruby2.5-rubygem-fast_gettext ruby2.5-rubygem-gem2rpm ruby2.5-rubygem-mini_portile2 ruby2.5-rubygem-nokogiri ruby2.5-rubygem-ruby-augeas ruby2.5-rubygem-ruby-dbus ruby2.5-rubygem-simpleidn ruby2.5-stdlib yast2-snapper 2>/dev/null
 
-    {
-        export LC_ALL="en_US.UTF-8"
-        export LANG="en_US.UTF-8"
-        export LANGUAGE="en_US"
-        retry -r 20 -- zypper --non-interactive up --allow-downgrade --replacefiles regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
-    } 2>&1 | tee "/var/log/regataos-logs/regataos-update-packages.log"
+    export HEALING_PIPE_LOG="/var/log/regataos-logs/regataos-update-packages.log"
 
-    {
-        export LC_ALL="en_US.UTF-8"
-        export LANG="en_US.UTF-8"
-        export LANGUAGE="en_US"
-        retry -r 20 -- zypper --non-interactive --no-gpg-checks update --allow-downgrade --replacefiles --auto-agree-with-licenses
-    } 2>&1 | tee "/var/log/regataos-logs/regataos-update-packages.log"
+    run_zypper_resilient in --allow-downgrade --replacefiles ruby ruby3.4 ruby3.4-rubygem-abstract_method ruby3.4-rubygem-cfa ruby3.4-rubygem-cheetah ruby3.4-rubygem-fast_gettext ruby3.4-rubygem-gem2rpm ruby3.4-rubygem-nokogiri ruby3.4-rubygem-ruby-augeas ruby3.4-rubygem-ruby-dbus ruby3.4-rubygem-simpleidn ruby-common yast2 yast2-country-data yast2-hardware-detection yast2-packager yast2-ruby-bindings yast2-storage-ng yast2-transfer
+
+    run_zypper_resilient up --allow-downgrade --replacefiles regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
+
+    run_zypper_resilient update --allow-downgrade --replacefiles --auto-agree-with-licenses
 
     # Run additional application settings
     if test -e "/tmp/regataos-prime/config/regataos-prime.conf"; then
@@ -302,11 +359,18 @@ case $1 in
 "-check-up-config")
     check_up_config
     ;;
+"-check-now" | "-search-update" | "-force")
+    export force_check=1
+    search_update
+    ;;
 "-install-up")
     update_packages
     ;;
 "-stop-up")
     stop_update
+    ;;
+"-repair" | "-heal")
+    full_system_repair
     ;;
 *)
     echo "Invalid option!"

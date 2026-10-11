@@ -40,19 +40,26 @@ if test -e "/tmp/regataos-update/update-specific-in-progress.txt"; then
     fi
 fi
 
-# Clear rpm files
-rm -f /tmp/regataos-update/*.rpm
+# Clear rpm and part files
+rm -f /tmp/regataos-update/*.rpm /tmp/regataos-update/*.part
 
 # Stop the download in progress
-get_pid=$(cat /tmp/regataos-update/get-pid.txt)
-pid=$(ps -C "$get_pid" | awk '{print $1}' | tail -1)
-kill -STOP $pid
-kill -KILL $pid
+killall aria2c 2>/dev/null
+killall wget 2>/dev/null
+pkill -f "zypper.*--download-only" 2>/dev/null
+get_pid=$(cat /tmp/regataos-update/get-pid.txt 2>/dev/null)
+if [ -n "$get_pid" ]; then
+    pid=$(ps -C "$get_pid" 2>/dev/null | awk '{print $1}' | tail -1)
+    kill -KILL $pid 2>/dev/null
+fi
 
 # Return to the initial state of the front end
 echo "" >"/tmp/regataos-update/downloadable-application.txt"
+echo "" >"/tmp/regataos-update/downloadable-application-other-updates.txt"
 echo "" >"/tmp/regataos-update/list-apps-queue.txt"
+rm -f "/tmp/regataos-update/other-updates-in-progress.txt"
+rm -f "/tmp/regataos-update/system-updates-download-complete.txt"
 
 killall check-update.py
 killall install-update.py
-kill -KILL $(ps -C "python install-update.py" | awk '{print $1}' | tail -1)
+kill -KILL $(ps -C "python install-update.py" | awk '{print $1}' | tail -1) 2>/dev/null

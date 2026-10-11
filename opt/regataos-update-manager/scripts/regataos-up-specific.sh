@@ -2,6 +2,8 @@
 
 cd /
 
+source "/opt/regataos-update-manager/scripts/regataos-update-healing.sh"
+
 while :
 do
 
@@ -36,21 +38,37 @@ function update_all_apps() {
     echo "" > "/tmp/regataos-update/update-specific-in-progress.txt"
 
     # Prepare package download link
-    repoUrl="$repo_link"
-    if [[ $repoUrl == *"[mainRepositoryUrl]"* ]]; then
-        repo_link="$(grep -r mainRepositoryUrl= /usr/share/regataos/regataos-base-version.txt | cut -d'=' -f 2-)"
-
-    elif [[ $repoUrl == *"[basedOnVersion]"* ]]; then
-        basedOnVersion="$(grep -r basedOnVersion= /usr/share/regataos/regataos-base-version.txt | cut -d'=' -f 2-)"
-        repo_link=$(echo $repoUrl | sed "s,\[basedOnVersion\],$basedOnVersion,")
-
-    elif [[ $repoUrl == *"[basedOn]"* ]]; then
-        basedOn="$(grep -r basedOn= /usr/share/regataos/regataos-base-version.txt | cut -d'=' -f 2-)"
-        repo_link=$(echo $repoUrl | sed "s,\[basedOn\],$basedOn,")
-
-    else
-        repo_link="$repoUrl"
+    repo_name="$(grep -R '"repository_name":' "$json_filename_dir" 2>/dev/null | awk '{print $2}' | sed 's/"\|,//g')"
+    if [ -z "$repo_name" ] && [ -f "/var/log/regataos-logs/regataos-list-updates.log" ]; then
+        repo_name="$(grep -E "\s+$package_name\s+" /var/log/regataos-logs/regataos-list-updates.log | awk -F'|' '{print $2}' | tr -d ' ' | head -1)"
     fi
+
+    actual_baseurl=""
+    if [ -n "$repo_name" ]; then
+        if [ -f "/etc/zypp/repos.d/${repo_name}.repo" ]; then
+            actual_baseurl="$(grep -m1 "^baseurl=" "/etc/zypp/repos.d/${repo_name}.repo" 2>/dev/null | cut -d'=' -f 2-)"
+        elif [ -f "/etc/zypp/repos.d/${repo_name}.local.repo" ]; then
+            actual_baseurl="$(grep -m1 "^baseurl=" "/etc/zypp/repos.d/${repo_name}.local.repo" 2>/dev/null | cut -d'=' -f 2-)"
+        fi
+    fi
+
+    if [ -n "$actual_baseurl" ]; then
+        repo_link="$actual_baseurl"
+    else
+        repoUrl="$repo_link"
+        if [[ $repoUrl == *"[mainRepositoryUrl]"* ]]; then
+            repo_link="$(grep -r mainRepositoryUrl= /usr/share/regataos/regataos-base-version.txt | cut -d'=' -f 2-)"
+        elif [[ $repoUrl == *"[basedOnVersion]"* ]]; then
+            basedOnVersion="$(grep -r basedOnVersion= /usr/share/regataos/regataos-base-version.txt | cut -d'=' -f 2-)"
+            repo_link=$(echo $repoUrl | sed "s,\[basedOnVersion\],$basedOnVersion,")
+        elif [[ $repoUrl == *"[basedOn]"* ]]; then
+            basedOn="$(grep -r basedOn= /usr/share/regataos/regataos-base-version.txt | cut -d'=' -f 2-)"
+            repo_link=$(echo $repoUrl | sed "s,\[basedOn\],$basedOn,")
+        else
+            repo_link="$repoUrl"
+        fi
+    fi
+    repo_link="${repo_link%/}"
 
     if [ -z $download_link ]; then
         version=$(zypper --non-interactive info $package_name | grep Ver | awk '{print $3}' | tail -1)
@@ -74,8 +92,33 @@ function update_all_apps() {
     echo "$first_list_item" > "/tmp/regataos-update/downloadable-application.txt"
 
     # Download app
-    echo "wget --no-check-certificate -O /tmp/regataos-update/$app_download_file_name $app_download_link" > "/tmp/regataos-update/get-pid-$app_nickname.txt"
-    wget --no-check-certificate -O /tmp/regataos-update/$app_download_file_name $app_download_link 2>&1 | (pv -n > /tmp/regataos-update/$app_nickname-download-percentage.log)
+    echo "downloading $app_nickname" > "/tmp/regataos-update/get-pid-$app_nickname.txt"
+    if command -v aria2c >/dev/null 2>&1; then
+        aria2c --follow-metalink=mem --metalink-preferred-protocol=https \
+            -x 16 -s 16 -j 16 -k 1M --file-allocation=none --check-certificate=false \
+            --allow-overwrite=true --auto-file-renaming=false \
+            -d "/tmp/regataos-update" -o "$app_download_file_name" "$app_download_link" 2>&1 | \
+            (pv -n > "/tmp/regataos-update/$app_nickname-download-percentage.log" 2>/dev/null || cat > "/tmp/regataos-update/$app_nickname-download-percentage.log")
+    fi
+
+    # Validação rigorosa: se falhou, está vazio ou é XML/metalink em vez de RPM, fallback para wget
+    local target_file="/tmp/regataos-update/$app_download_file_name"
+    local is_valid=0
+    if [ -s "$target_file" ]; then
+        if [[ "$app_download_file_name" == *.rpm ]]; then
+            if python3 -c "import sys; sys.exit(0 if open('$target_file', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
+                is_valid=1
+            fi
+        else
+            is_valid=1
+        fi
+    fi
+
+    if [ "$is_valid" -ne 1 ]; then
+        rm -f "$target_file"
+        wget --no-check-certificate -O "$target_file" "$app_download_link" 2>&1 | \
+            (pv -n > "/tmp/regataos-update/$app_nickname-download-percentage.log" 2>/dev/null || cat > "/tmp/regataos-update/$app_nickname-download-percentage.log")
+    fi
 
     # Install package
     if test ! -e "/tmp/regataos-update/cancel-up-$app_nickname.txt"; then
@@ -87,9 +130,8 @@ function update_all_apps() {
 
         echo "" > "/tmp/regataos-update/installation-in-progress.txt"
         cd /tmp/regataos-update/
-        {
-        retry -r 20 -- zypper --non-interactive --no-gpg-checks install --allow-downgrade --replacefiles --auto-agree-with-licenses $app_download_file_name
-        } 2>&1 | tee -a "/var/log/regataos-logs/regataos-update-$package_name.log"
+        export HEALING_PIPE_LOG="/var/log/regataos-logs/regataos-update-$package_name.log"
+        run_zypper_resilient install --allow-downgrade --replacefiles --auto-agree-with-licenses $app_download_file_name
 
         # Run additional application settings
         if test -e "/tmp/regataos-prime/config/regataos-prime.conf"; then
