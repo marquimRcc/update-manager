@@ -50,11 +50,40 @@
         },
         "settings": {
             "title": "Configurações",
+            "tabs": {
+                "general": "Geral",
+                "mirrors": "Servidores de Download"
+            },
+            "generalTab": {
+                "subtitle": "Defina como e quando o sistema deve verificar novas atualizações.",
+                "autoTitle": "Atualizar automaticamente",
+                "autoDesc": "O sistema baixa e prepara atualizações periodicamente em segundo plano, mantendo tudo sempre em dia.",
+                "checkTitle": "Apenas procurar atualizações",
+                "checkDesc": "Verifica se há novos pacotes e exibe uma notificação para você autorizar o download quando quiser.",
+                "neverTitle": "Nunca procurar",
+                "neverDesc": "Desativa consultas automáticas. O sistema só buscará atualizações se você clicar manualmente em verificar."
+            },
+            "mirrorTab": {
+                "activeTag": "Servidor Ativo",
+                "activeDesc": "Os pacotes e repositórios do sistema são baixados a partir deste servidor."
+            },
             "autoUpdateOption": {
                 "title": "Atualizações automáticas",
                 "autoUpOn": "Atualizar o sistema automaticamente",
                 "checkUpOnly": "Apenas procurar por atualizações",
                 "neverUpdate": "Nunca procurar por atualizações"
+            },
+            "mirrorOption": {
+                "title": "Servidor de download (Espelho)",
+                "diagTitle": "Diagnóstico de servidores",
+                "colServer": "Servidor",
+                "colPing": "Latência",
+                "colSpeed": "Velocidade",
+                "colAction": "Ação",
+                "btnTest": "Testar velocidade dos servidores",
+                "btnTesting": "Testando conexões...",
+                "btnUse": "Usar",
+                "btnActive": "Ativo"
             }
         }
     }

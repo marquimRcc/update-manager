@@ -50,11 +50,40 @@
         },
         "settings": {
             "title": "Settings",
+            "tabs": {
+                "general": "General",
+                "mirrors": "Download Servers"
+            },
+            "generalTab": {
+                "subtitle": "Define how and when the system checks for new updates.",
+                "autoTitle": "Update automatically",
+                "autoDesc": "The system periodically downloads and prepares updates in the background, keeping everything up to date.",
+                "checkTitle": "Check for updates only",
+                "checkDesc": "Checks if new packages are available and notifies you so you can authorise the download when convenient.",
+                "neverTitle": "Never check for updates",
+                "neverDesc": "Disables automatic checks. The system will only search for updates when you manually click to check."
+            },
+            "mirrorTab": {
+                "activeTag": "Active Server",
+                "activeDesc": "System packages and repositories are downloaded from this server."
+            },
             "autoUpdateOption": {
                 "title": "Automatic updates",
                 "autoUpOn": "Update the system automatically",
                 "checkUpOnly": "Just check for system updates",
                 "neverUpdate": "Never check for updates"
+            },
+            "mirrorOption": {
+                "title": "Download server (Mirror)",
+                "diagTitle": "Server benchmark & diagnostics",
+                "colServer": "Server",
+                "colPing": "Latency",
+                "colSpeed": "Speed",
+                "colAction": "Action",
+                "btnTest": "Benchmark download mirrors",
+                "btnTesting": "Testing mirrors...",
+                "btnUse": "Use",
+                "btnActive": "Active"
             }
         }
     }

@@ -38,52 +38,112 @@ function autoUpdate() {
 }
 autoUpdate();
 
+let wasInstalling = false;
+let isTransitioningToUpdated = false;
+
 // Display elements on the screen according to the current status
-setInterval(currentStatus, 1000);
+setInterval(currentStatus, 500);
 function currentStatus() {
     const fs = require('fs');
     const statusFile = "/tmp/regataos-update/status.txt";
 
     if (fs.existsSync(statusFile)) {
         const getCurrentStatus = fs.readFileSync(statusFile, "utf8");
+
+        const neverTitle = document.querySelector(".never-update-title");
+        const checkTitle = document.querySelector(".check-update-title");
+        const installTitle = document.querySelector(".installing-update-title");
+        const searchStatus = document.querySelector(".search-update-status");
+        const withoutTitle = document.querySelector(".without-update-title");
+        const withTitle = document.querySelector(".with-update-title");
+        const updatedTitle = document.querySelector(".updated-system-title");
+
+        const mainNever = document.querySelector("#main-never-update");
+        const mainCheck = document.querySelector("#main-check-update");
+        const mainInstall = document.querySelector("#main-install-update");
+        const mainWithout = document.querySelector("#main-without-update");
+        const mainWith = document.querySelector("#main-with-update");
+        const div1 = document.querySelector(".div1");
+        const div1Sub = document.querySelector(".div1-sub");
+        const mainEl = document.querySelector(".main");
+
+        if (isTransitioningToUpdated) {
+            return;
+        }
+
+        const splitHeaderChecking = document.querySelector("#split-header-checking");
+        const splitHeaderUpdates = document.querySelector("#split-header-updates");
+        const splitHeaderUpdated = document.querySelector("#split-header-updated");
+        const splitCheckingView = document.querySelector("#split-checking-view");
+        const splitUpdatedView = document.querySelector("#split-updated-view");
+        const splitRightCards = document.querySelector("#split-right-cards");
+        const splitCheckBtnWrap = document.querySelector("#split-check-button-wrap");
+        const updateAll = document.querySelector(".split-left-footer .update-all");
+
+        if (div1) div1.style.display = "none";
+        if (mainNever) mainNever.style.display = "none";
+        if (mainCheck) mainCheck.style.display = "none";
+        if (mainInstall) mainInstall.style.display = "none";
+        if (mainWithout) mainWithout.style.display = "none";
+        if (mainWith) mainWith.style.display = "flex";
+        if (mainEl) mainEl.classList.add("split-active");
+
         if (getCurrentStatus.includes("never-updates")) {
-            document.querySelector(".never-update-title").style.display = "block";
-            document.querySelector("#main-never-update").style.display = "block";
-            document.querySelector(".check-update-title").style.display = "none";
-            document.querySelector(".search-update-status").style.display = "none";
-            document.querySelector("#main-check-update").style.display = "none";
-            document.querySelector(".without-update-title").style.display = "none";
-            document.querySelector("#main-without-update").style.display = "none";
-            document.querySelector(".with-update-title").style.display = "none";
-            document.querySelector("#main-with-update").style.display = "none";
-            document.querySelector(".div1-sub").style.display = "none";
-            document.querySelector(".updated-system-title").style.display = "none";
+            if (splitHeaderChecking) splitHeaderChecking.style.display = "none";
+            if (splitHeaderUpdates) splitHeaderUpdates.style.display = "none";
+            if (splitHeaderUpdated) splitHeaderUpdated.style.display = "block";
+            if (splitCheckingView) splitCheckingView.style.display = "none";
+            if (splitUpdatedView) splitUpdatedView.style.display = "flex";
+            if (splitRightCards) splitRightCards.style.display = "none";
+            if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "block";
+            if (updateAll) updateAll.style.display = "none";
+
+            const stepVerify = document.getElementById('install-step-verify');
+            const stepVerifyTitle = document.getElementById('install-step-verify-title');
+            const verifyDetails = document.getElementById('install-verify-details');
+            if (stepVerify) stepVerify.className = 'v-step';
+            if (stepVerifyTitle) stepVerifyTitle.textContent = '1. Verificação';
+            if (verifyDetails) verifyDetails.textContent = 'Desativada';
 
         } else if (getCurrentStatus.includes("check-updates")) {
-            document.querySelector(".never-update-title").style.display = "none";
-            document.querySelector("#main-never-update").style.display = "none";
-            document.querySelector(".check-update-title").style.display = "block";
-            document.querySelector(".search-update-status").style.display = "block";
-            document.querySelector("#main-check-update").style.display = "block";
-            document.querySelector(".without-update-title").style.display = "none";
-            document.querySelector("#main-without-update").style.display = "none";
-            document.querySelector(".with-update-title").style.display = "none";
-            document.querySelector("#main-with-update").style.display = "none";
-            document.querySelector(".div1-sub").style.display = "none";
-            document.querySelector(".updated-system-title").style.display = "none";
+            if (splitHeaderChecking) splitHeaderChecking.style.display = "block";
+            if (splitHeaderUpdates) splitHeaderUpdates.style.display = "none";
+            if (splitHeaderUpdated) splitHeaderUpdated.style.display = "none";
+            if (splitCheckingView) splitCheckingView.style.display = "flex";
+            if (splitUpdatedView) splitUpdatedView.style.display = "none";
+            if (splitRightCards) splitRightCards.style.display = "none";
+            if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "none";
+            if (updateAll) updateAll.style.display = "none";
 
-        } else if ((getCurrentStatus.includes("show-updates")) || (getCurrentStatus.includes("installing-updates"))) {
-            document.querySelector(".never-update-title").style.display = "none";
-            document.querySelector("#main-never-update").style.display = "none";
-            document.querySelector(".check-update-title").style.display = "none";
-            document.querySelector(".search-update-status").style.display = "none";
-            document.querySelector("#main-check-update").style.display = "none";
-            document.querySelector(".without-update-title").style.display = "none";
-            document.querySelector("#main-without-update").style.display = "none";
-            document.querySelector(".with-update-title").style.display = "block";
-            document.querySelector("#main-with-update").style.display = "block";
-            document.querySelector(".div1-sub").style.display = "block";
-            document.querySelector(".updated-system-title").style.display = "none";
+            applyTranslationPages();
+
+        } else if (getCurrentStatus.includes("installing-updates")) {
+            if (!wasInstalling && typeof resetGlobalProgress === 'function') {
+                resetGlobalProgress();
+            }
+            wasInstalling = true;
+
+            if (splitHeaderChecking) splitHeaderChecking.style.display = "none";
+            if (splitHeaderUpdates) splitHeaderUpdates.style.display = "block";
+            if (splitHeaderUpdated) splitHeaderUpdated.style.display = "none";
+            if (splitCheckingView) splitCheckingView.style.display = "none";
+            if (splitUpdatedView) splitUpdatedView.style.display = "none";
+            if (splitRightCards) splitRightCards.style.display = "flex";
+            if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "none";
+
+            showNumberUpdates();
+            autoUpdate();
+            listUpdates();
+            applyTranslationPages();
+
+        } else if (getCurrentStatus.includes("show-updates")) {
+            if (splitHeaderChecking) splitHeaderChecking.style.display = "none";
+            if (splitHeaderUpdates) splitHeaderUpdates.style.display = "block";
+            if (splitHeaderUpdated) splitHeaderUpdated.style.display = "none";
+            if (splitCheckingView) splitCheckingView.style.display = "none";
+            if (splitUpdatedView) splitUpdatedView.style.display = "none";
+            if (splitRightCards) splitRightCards.style.display = "flex";
+            if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "none";
 
             showNumberUpdates();
             autoUpdate();
@@ -91,26 +151,55 @@ function currentStatus() {
             applyTranslationPages();
 
         } else if ((getCurrentStatus.includes("no-updates")) || (getCurrentStatus.includes("updated"))) {
-            document.querySelector(".never-update-title").style.display = "none";
-            document.querySelector("#main-never-update").style.display = "none";
-            document.querySelector(".check-update-title").style.display = "none";
-            document.querySelector(".search-update-status").style.display = "none";
-            document.querySelector("#main-check-update").style.display = "none";
-            document.querySelector("#main-without-update").style.display = "block";
-            document.querySelector(".with-update-title").style.display = "none";
-            document.querySelector("#main-with-update").style.display = "none";
-            document.querySelector(".div1-sub").style.display = "none";
-
-            if (getCurrentStatus.includes("no-updates")) {
-                document.querySelector(".without-update-title").style.display = "block";
-                document.querySelector(".updated-system-title").style.display = "none";
-            } else {
-                document.querySelector(".without-update-title").style.display = "none";
-                document.querySelector(".updated-system-title").style.display = "block";
+            if (wasInstalling && getCurrentStatus.includes("updated")) {
+                isTransitioningToUpdated = true;
+                const tot = (typeof window.lastKnownTotal !== 'undefined' && window.lastKnownTotal > 0) ? window.lastKnownTotal : 1;
+                if (typeof updateRegataProgressWidget === 'function') {
+                    updateRegataProgressWidget('install-', { stage: 'concluded', currentStep: tot, totalSteps: tot, speed: '' });
+                }
+                setTimeout(() => {
+                    wasInstalling = false;
+                    isTransitioningToUpdated = false;
+                    currentStatus();
+                }, 1800);
+                return;
             }
+
+            if (splitHeaderChecking) splitHeaderChecking.style.display = "none";
+            if (splitHeaderUpdates) splitHeaderUpdates.style.display = "none";
+            if (splitHeaderUpdated) splitHeaderUpdated.style.display = "block";
+            if (splitCheckingView) splitCheckingView.style.display = "none";
+            if (splitUpdatedView) splitUpdatedView.style.display = "flex";
+            if (splitRightCards) splitRightCards.style.display = "none";
+            if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "block";
+            if (updateAll) updateAll.style.display = "none";
+
+            // Left panel steps in completed state
+            const circle = document.getElementById('install-circle-progress');
+            const text = document.getElementById('install-circle-percentage');
+            const stepVerify = document.getElementById('install-step-verify');
+            const stepVerifyTitle = document.getElementById('install-step-verify-title');
+            const verifyDetails = document.getElementById('install-verify-details');
+            const stepDownload = document.getElementById('install-step-download');
+            const downloadDetails = document.getElementById('install-download-details');
+            const stepInstall = document.getElementById('install-step-install');
+            const installDetails = document.getElementById('install-install-details');
+
+            if (typeof setProgressArc === 'function') {
+                setProgressArc(circle, text, 100, false);
+            }
+            if (text) text.textContent = '100%';
+            if (stepVerify) stepVerify.className = 'v-step completed';
+            if (stepVerifyTitle) stepVerifyTitle.textContent = '1. Verificado';
+            if (verifyDetails) verifyDetails.textContent = 'Tudo atualizado';
+            if (stepDownload) stepDownload.className = 'v-step completed';
+            if (downloadDetails) downloadDetails.textContent = 'Concluído';
+            if (stepInstall) stepInstall.className = 'v-step completed';
+            if (installDetails) installDetails.textContent = 'Concluído';
 
             showNumberUpdates();
             autoUpdate();
+            applyTranslationPages();
         }
     }
 }

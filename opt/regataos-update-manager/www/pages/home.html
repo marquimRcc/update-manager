@@ -8,45 +8,78 @@
 	<link rel="stylesheet" type="text/css" href="./../css/style.css">
 	<script type="text/javascript" src="./../js/settings-checker.js"></script>
 	<script type="text/javascript" src="./../js/functions.js"></script>
+	<script>
+		window.onerror = function(msg, url, lineNo, columnNo, error) {
+			try {
+				const fs = require('fs');
+				fs.appendFileSync('/tmp/regataos-update/js_error.log', `${new Date().toISOString()} [ERROR] ${msg} at ${url}:${lineNo}:${columnNo}\n${error ? error.stack : ''}\n`);
+			} catch(e) {}
+		};
+	</script>
 </head>
 
 <body>
 	<div id="loadscreen" class="loadscreen-page"></div>
-	<div class="main">
-		<div class="div1">
+	<div class="main split-active">
+		<div class="div1" style="display: none;">
 			<h1>Regata OS Update</h1>
 			<div class="never-update-title">Never look for system updates!</div>
 			<div class="check-update-title">Checking for updates...</div>
+			<div class="installing-update-title" style="display: none;">Instalando atualizações...</div>
 			<div class="search-update-status">This may take a few minutes!</div>
 			<div class="without-update-title">There are no updates available.</div>
-			<div class="with-update-title">
-				<div class="yes-up">Updates available!</div>
-				<div class="updates-app-number"></div>
-			</div>
 			<div class="updated-system-title">
 				<div class="updated">Updated!</div>
 				<div class="updated-img" style="background-image:url(../images/updated-system.png);"></div>
 			</div>
-			<div class="div1-sub">
-				<div class="auto-update-status not-up-auto">Automatic update disabled.</div>
-				<div class="auto-update-status yes-update-auto">Automatic update enabled.</div>
-				<div class="update-all">
-					<div class="update-all-button1" onclick="installAllApps();">Update all</div>
-					<div id="updateall-button2" class="update-all-button2" onclick="cancelAllApps();">Cancel</div>
-				</div>
-			</div>
 		</div>
-		<div id="main-never-update">
+		<div id="main-never-update" style="display: none;">
 			<div class="never-update">
 				<div class="never-update-img"></div>
 			</div>
-		</div>
-		<div id="main-check-update">
-			<div class="loading">
-				<div class="loader"></div>
+			<div class="never-update-check-button">
+				<div id="never-check-updates-button" onclick="checkUpdatesManually();">Verificar agora</div>
 			</div>
 		</div>
-		<div id="main-without-update">
+		<div id="main-check-update" style="display: none;">
+			<div class="regata-progress-widget main-progress-card" id="check-progress-widget">
+				<div class="regata-circle-wrap">
+					<svg class="regata-progress-svg" viewBox="0 0 100 100">
+						<circle class="circle-bg" cx="50" cy="50" r="38"></circle>
+						<circle class="circle-progress indeterminate" id="check-circle-progress" cx="50" cy="50" r="38"></circle>
+					</svg>
+					<div class="regata-circle-text">
+						<span class="circle-percentage" id="check-circle-percentage">1/3</span>
+					</div>
+				</div>
+				<div class="regata-steps-wrap">
+					<div class="regata-step step-verify active" id="check-step-verify">
+						<span class="step-icon">
+							<span class="step-spinner"></span>
+							<svg class="icon-svg icon-check" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+						</span>
+						<span class="step-label-group">
+							<span class="step-label">Verificando</span>
+							<span class="step-details" id="check-verify-details"></span>
+						</span>
+					</div>
+					<div class="regata-step step-download" id="check-step-download">
+						<span class="step-icon">
+							<svg class="icon-svg icon-download" viewBox="0 0 24 24"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+						</span>
+						<span class="step-label">Baixando</span>
+					</div>
+					<div class="regata-step step-install" id="check-step-install">
+						<span class="step-icon">
+							<svg class="icon-svg icon-package" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>
+						</span>
+						<span class="step-label">Instalando</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="main-install-update" style="display: none;"></div>
+		<div id="main-without-update" style="display: none;">
 			<div class="updated-system">
 				<div class="updated-system-img" style="background-image:url(../images/updated-system.png);"></div>
 			</div>
@@ -58,33 +91,186 @@
 				<div id="check-updates-button" onclick="checkUpdatesManually();">Check for updates</div>
 			</div>
 		</div>
-		<div id="main-with-update">
-			<div class="div2" id="all-apps">
-			</div>
-			<div class="div2-other-updates">
-				<div class="other-updates">
-					<div class="icon-app"
-						style="background-image:url(../images/other-updates.png); width: 31px; height: 31px; margin-top: 0px; margin-left: 12px; margin-right: 22px;">
+		<div id="main-with-update" class="split-view-container" style="display: flex;">
+			<!-- LEFT PANEL: Stages, Progress Circle & Action Button -->
+			<div class="split-left-panel">
+				<div class="split-left-top">
+					<div class="split-app-brand">
+						<h1 class="split-brand-title">Regata OS Update</h1>
+						<p class="split-brand-subtitle">Gerenciador de atualizações</p>
 					</div>
-					<div class="app-name">System updates</div>
-					<div class="updates-package-number"></div>
-					<div class="more-details show-details" onclick="displayDetails('show');">
-						<img src="../images/arrow_right.png" alt="">
-						<div class="more-details-text">More details</div>
+
+					<div class="split-circle-section">
+						<div class="regata-circle-wrap">
+							<svg class="regata-progress-svg" viewBox="0 0 100 100">
+								<circle class="circle-bg" cx="50" cy="50" r="38"></circle>
+								<circle class="circle-progress indeterminate" id="install-circle-progress" cx="50" cy="50" r="38"></circle>
+							</svg>
+							<div class="regata-circle-text">
+								<span class="circle-percentage" id="install-circle-percentage">0%</span>
+							</div>
+						</div>
 					</div>
-					<div class="more-details hide-details" onclick="displayDetails('hide');">
-						<img src="../images/arrow_drop_down.png" alt="">
-						<div class="more-details-text">More details</div>
-					</div>
-					<div id="pending-other-updates" class="app-status-pending">Pending...</div>
-					<div id="downloading-other-updates" class="app-status-download">Downloading...</div>
-					<div id="installing-other-updates" class="app-status-install">Installing...</div>
-					<div id="concluded-other-updates" class="app-status-concluded">Concluded!</div>
-					<div id="percentage-other-updates" class="app-status-percentage"></div>
-					<div id="update-app-other-updates" class="update-other" onclick="installOtherUpdates();">Update
+
+					<div class="split-vertical-steps">
+						<div class="v-step active" id="install-step-verify">
+							<div class="v-step-badge">
+								<span class="step-spinner"></span>
+								<svg class="icon-svg icon-check" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+								<span class="step-num">1</span>
+							</div>
+							<div class="v-step-content">
+								<div class="v-step-title" id="install-step-verify-title">1. Verificando</div>
+								<div class="v-step-desc" id="install-verify-details">Consultando repositórios...</div>
+							</div>
+						</div>
+
+						<div class="v-step" id="install-step-download">
+							<div class="v-step-badge">
+								<span class="step-spinner"></span>
+								<svg class="icon-svg icon-check" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+								<span class="step-num">2</span>
+							</div>
+							<div class="v-step-content">
+								<div class="v-step-title" id="install-step-download-title">2. Download</div>
+								<div class="v-step-desc" id="install-download-details">Aguardando verificação</div>
+							</div>
+						</div>
+
+						<div class="v-step" id="install-step-install">
+							<div class="v-step-badge">
+								<span class="step-spinner"></span>
+								<svg class="icon-svg icon-check" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+								<span class="step-num">3</span>
+							</div>
+							<div class="v-step-content">
+								<div class="v-step-title" id="install-step-install-title">3. Instalação</div>
+								<div class="v-step-desc" id="install-install-details">Aguardando verificação</div>
+							</div>
+						</div>
 					</div>
 				</div>
-				<div class="more-details-contents"></div>
+
+				<div class="split-left-footer">
+					<div class="update-all" style="display: none;">
+						<div class="update-all-button1" onclick="installAllApps();">Atualizar tudo</div>
+						<div id="updateall-button2" class="update-all-button2" onclick="cancelAllApps();">Cancelar</div>
+					</div>
+					<div id="split-check-button-wrap" style="display: none;">
+						<div id="split-check-updates-button" class="update-all-button1" onclick="checkUpdatesManually();">Verificar agora</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- RIGHT PANEL: Header & Updates Cards List / Checking View / Updated View -->
+			<div class="split-right-panel">
+				<!-- Header when checking for updates -->
+				<div class="split-right-header-checking" id="split-header-checking" style="display: none;">
+					<div class="check-update-title">Checking for updates...</div>
+					<div class="search-update-status">This may take a few minutes!</div>
+				</div>
+
+				<!-- Header when updates ready/installing -->
+				<div class="split-right-header" id="split-header-updates" style="display: none;">
+					<div class="with-update-title">
+						<span class="yes-up">Atualizações disponíveis!</span>
+						<span class="updates-app-number"></span>
+					</div>
+					<div class="div1-sub">
+						<div class="auto-update-status not-up-auto">Atualização automática desativada.</div>
+						<div class="auto-update-status yes-update-auto">Atualização automática ativada.</div>
+					</div>
+				</div>
+
+				<!-- Header when up to date -->
+				<div class="split-right-header-updated" id="split-header-updated" style="display: none;">
+					<div class="without-update-title">There are no updates available.</div>
+					<div class="updated-system-title">
+						<div class="updated">Updated!</div>
+					</div>
+				</div>
+
+				<!-- Skeletons / Scanning Placeholder for check-updates -->
+				<div id="split-checking-view" class="split-checking-view" style="display: none;">
+					<div class="checking-status-card">
+						<div class="checking-status-left">
+							<span class="step-spinner checking-spinner-inline"></span>
+							<div class="checking-status-text">
+								<span id="checking-status-label">Consultando repositórios do sistema...</span>
+							</div>
+						</div>
+						<button id="btn-cancel-checking" class="btn-cancel-checking" onclick="cancelCheckingUpdates();">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+							<span class="cancel-checking-text">Cancelar</span>
+						</button>
+					</div>
+					<div class="checking-skeleton-card">
+						<div class="skeleton-icon shimmer"></div>
+						<div class="skeleton-lines">
+							<div class="skeleton-line shimmer" style="width: 35%; height: 16px;"></div>
+							<div class="skeleton-line shimmer" style="width: 60%; height: 12px; margin-top: 6px;"></div>
+						</div>
+					</div>
+					<div class="checking-skeleton-card">
+						<div class="skeleton-icon shimmer"></div>
+						<div class="skeleton-lines">
+							<div class="skeleton-line shimmer" style="width: 40%; height: 16px;"></div>
+							<div class="skeleton-line shimmer" style="width: 50%; height: 12px; margin-top: 6px;"></div>
+						</div>
+					</div>
+					<div class="checking-skeleton-card">
+						<div class="skeleton-icon shimmer"></div>
+						<div class="skeleton-lines">
+							<div class="skeleton-line shimmer" style="width: 30%; height: 16px;"></div>
+							<div class="skeleton-line shimmer" style="width: 45%; height: 12px; margin-top: 6px;"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Updated / No updates view -->
+				<div id="split-updated-view" class="split-updated-view" style="display: none;">
+					<div class="updated-system">
+						<div class="updated-system-img" style="background-image:url(../images/updated-system.png);"></div>
+					</div>
+					<div class="check-updates-button-status">
+						<div class="check-updates-button-title" id="split-check-updates-button-title">All ready</div>
+						<div class="check-updates-button-desc" id="split-check-updates-button-desc">All apps are up to date</div>
+					</div>
+					<div class="updated-system-check-button">
+						<div id="split-check-updates-btn" class="split-recheck-btn" onclick="checkUpdatesManually();">Check for updates</div>
+					</div>
+				</div>
+
+				<!-- Updates Cards List -->
+				<div class="split-right-cards" id="split-right-cards" style="display: none;">
+					<div class="div2" id="all-apps">
+					</div>
+					<div class="div2-other-updates">
+						<div class="other-updates">
+							<div class="icon-app"
+								style="background-image:url(../images/other-updates.png); width: 31px; height: 31px; margin-top: 0px; margin-left: 12px; margin-right: 22px;">
+							</div>
+							<div class="app-name">System updates</div>
+							<div class="updates-package-number"></div>
+							<div class="more-details show-details" onclick="displayDetails('show');">
+								<img src="../images/arrow_right.png" alt="">
+								<div class="more-details-text">More details</div>
+							</div>
+							<div class="more-details hide-details" onclick="displayDetails('hide');">
+								<img src="../images/arrow_drop_down.png" alt="">
+								<div class="more-details-text">More details</div>
+							</div>
+							<div id="pending-other-updates" class="app-status-pending">Pending...</div>
+							<div id="downloading-other-updates" class="app-status-download">Downloading...</div>
+							<div id="installing-other-updates" class="app-status-install">Installing...</div>
+							<div id="concluded-other-updates" class="app-status-concluded">Concluded!</div>
+							<div id="percentage-other-updates" class="app-status-percentage"></div>
+							<div id="update-app-other-updates" class="update-other" onclick="installOtherUpdates();">Update
+							</div>
+						</div>
+						<div class="more-details-contents"></div>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>

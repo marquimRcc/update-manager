@@ -14,21 +14,52 @@ function applyTranslationPages() {
 
         if (pageUrl.includes("home.html")) {
             // Title
-            document.querySelector("h1").innerHTML = data[i].index.windowTitle;
+            document.querySelectorAll("h1").forEach(el => el.innerHTML = data[i].index.windowTitle);
+
+            // Split brand subtitle & step titles
+            const splitSub = document.querySelector(".split-brand-subtitle");
+            if (splitSub) {
+                splitSub.innerHTML = (data[i].index.sideBar && data[i].index.sideBar.home === "Atualizações") ? "Gerenciador de atualizações" : "Update Manager";
+            }
+            const stepVTitle = document.getElementById("install-step-verify-title");
+            if (stepVTitle) {
+                const fs = require('fs');
+                const statusFile = "/tmp/regataos-update/status.txt";
+                let isChecking = false;
+                if (fs.existsSync(statusFile)) {
+                    isChecking = fs.readFileSync(statusFile, 'utf8').includes('check-updates');
+                }
+                if (isChecking) {
+                    stepVTitle.innerHTML = (data[i].index.sideBar && data[i].index.sideBar.home === "Atualizações") ? "1. Verificando" : "1. Checking";
+                } else {
+                    stepVTitle.innerHTML = (data[i].index.sideBar && data[i].index.sideBar.home === "Atualizações") ? "1. Verificado" : "1. Verified";
+                }
+            }
+            const stepDTitle = document.getElementById("install-step-download-title");
+            if (stepDTitle) {
+                stepDTitle.innerHTML = (data[i].index.sideBar && data[i].index.sideBar.home === "Atualizações") ? "2. Download" : "2. Download";
+            }
+            const stepITitle = document.getElementById("install-step-install-title");
+            if (stepITitle) {
+                stepITitle.innerHTML = (data[i].index.sideBar && data[i].index.sideBar.home === "Atualizações") ? "3. Instalação" : "3. Installation";
+            }
 
             // Top button
-            document.querySelector(".update-all-button1").innerHTML = data[i].home.topButton.updateAll;
-            document.querySelector(".update-all-button2").innerHTML = data[i].home.topButton.cancel;
+            document.querySelectorAll(".update-all-button1").forEach(el => el.innerHTML = data[i].home.topButton.updateAll);
+            document.querySelectorAll(".update-all-button2").forEach(el => el.innerHTML = data[i].home.topButton.cancel);
 
             // Update status
-            document.querySelector(".check-update-title").innerHTML = data[i].home.appStatus.checkUp;
-            document.querySelector(".without-update-title").innerHTML = data[i].home.appStatus.noUpdates;
-            document.querySelector(".never-update-title").innerHTML = data[i].home.appStatus.neverUp;
-            document.querySelector(".yes-up").innerHTML = data[i].home.appStatus.yesUp;
-            document.querySelector(".updated").innerHTML = data[i].home.appStatus.updated;
-            document.querySelector(".search-update-status").innerHTML = data[i].home.appStatus.searchUp;
-            document.querySelector(".not-up-auto").innerHTML = data[i].home.appStatus.noUpAuto;
-            document.querySelector(".yes-update-auto").innerHTML = data[i].home.appStatus.yesUpAuto;
+            document.querySelectorAll(".check-update-title").forEach(el => el.innerHTML = data[i].home.appStatus.checkUp);
+            document.querySelectorAll(".without-update-title").forEach(el => el.innerHTML = data[i].home.appStatus.noUpdates);
+            document.querySelectorAll(".never-update-title").forEach(el => el.innerHTML = data[i].home.appStatus.neverUp);
+            document.querySelectorAll(".yes-up").forEach(el => el.innerHTML = data[i].home.appStatus.yesUp);
+            document.querySelectorAll(".updated").forEach(el => el.innerHTML = data[i].home.appStatus.updated);
+            document.querySelectorAll(".search-update-status").forEach(el => el.innerHTML = data[i].home.appStatus.searchUp);
+            if (document.querySelector(".installing-update-title")) {
+                document.querySelector(".installing-update-title").innerHTML = data[i].home.updateStatus.installing;
+            }
+            document.querySelectorAll(".not-up-auto").forEach(el => el.innerHTML = data[i].home.appStatus.noUpAuto);
+            document.querySelectorAll(".yes-update-auto").forEach(el => el.innerHTML = data[i].home.appStatus.yesUpAuto);
 
             // App Status
             const appStatusPending = document.querySelectorAll(".app-status-pending");
@@ -51,9 +82,31 @@ function applyTranslationPages() {
                 appStatusConcluded[b].innerHTML = data[i].home.updateStatus.concluded;
             }
 
-            document.querySelector("#check-updates-button").innerHTML = data[i].home.updateStatus.verify;
-            document.querySelector("#check-updates-button-title").innerHTML = data[i].home.updateStatus.allReady;
-            document.querySelector("#check-updates-button-desc").innerHTML = data[i].home.updateStatus.allReadyDesc;
+            if (document.querySelector("#check-updates-button")) {
+                document.querySelector("#check-updates-button").innerHTML = data[i].home.updateStatus.verify;
+            }
+            if (document.querySelector("#never-check-updates-button")) {
+                document.querySelector("#never-check-updates-button").innerHTML = data[i].home.updateStatus.verify;
+            }
+            if (document.querySelector("#check-updates-button-title")) {
+                document.querySelector("#check-updates-button-title").innerHTML = data[i].home.updateStatus.allReady;
+            }
+            if (document.querySelector("#check-updates-button-desc")) {
+                document.querySelector("#check-updates-button-desc").innerHTML = data[i].home.updateStatus.allReadyDesc;
+            }
+
+            if (document.querySelector("#split-check-updates-btn")) {
+                document.querySelector("#split-check-updates-btn").innerHTML = data[i].home.updateStatus.verify;
+            }
+            if (document.querySelector("#split-check-updates-button")) {
+                document.querySelector("#split-check-updates-button").innerHTML = data[i].home.updateStatus.verify;
+            }
+            if (document.querySelector("#split-check-updates-button-title")) {
+                document.querySelector("#split-check-updates-button-title").innerHTML = data[i].home.updateStatus.allReady;
+            }
+            if (document.querySelector("#split-check-updates-button-desc")) {
+                document.querySelector("#split-check-updates-button-desc").innerHTML = data[i].home.updateStatus.allReadyDesc;
+            }
 
             // System updates status
             const otherUpStatusWaiting = document.querySelectorAll(".otherup-app-status-waiting");
@@ -87,6 +140,11 @@ function applyTranslationPages() {
                 cancelUpdate[b].innerHTML = data[i].home.button.cancel;
             }
 
+            const cancelChecking = document.querySelectorAll(".cancel-checking-text");
+            for (let b = 0; b < cancelChecking.length; b++) {
+                cancelChecking[b].innerHTML = data[i].home.button.cancel;
+            }
+
             // Other updates
             document.querySelector(".other-updates .app-name").innerHTML = data[i].home.otherUpdates.title;
             document.querySelector("#update-app-other-updates").innerHTML = data[i].home.otherUpdates.otherUpButton;
@@ -94,6 +152,20 @@ function applyTranslationPages() {
             const moreDetailsText = document.querySelectorAll(".more-details-text");
             for (let b = 0; b < moreDetailsText.length; b++) {
                 moreDetailsText[b].innerHTML = data[i].home.otherUpdates.moreDetails;
+            }
+
+            // Progress widget step labels
+            const stepVerifyLabels = document.querySelectorAll(".step-verify .step-label");
+            for (let b = 0; b < stepVerifyLabels.length; b++) {
+                stepVerifyLabels[b].innerHTML = data[i].home.updateStatus.checking.replace(/\.+$/, '');
+            }
+            const stepDownloadLabels = document.querySelectorAll(".step-download .step-label");
+            for (let b = 0; b < stepDownloadLabels.length; b++) {
+                stepDownloadLabels[b].innerHTML = data[i].home.updateStatus.download.replace(/\.+$/, '');
+            }
+            const stepInstallLabels = document.querySelectorAll(".step-install .step-label");
+            for (let b = 0; b < stepInstallLabels.length; b++) {
+                stepInstallLabels[b].innerHTML = data[i].home.updateStatus.installing.replace(/\.+$/, '');
             }
 
         } else if (pageUrl.includes("historic.html")) {
@@ -112,6 +184,36 @@ function applyTranslationPages() {
             document.querySelector("h1").innerHTML = data[i].index.windowTitle;
             document.querySelector(".apps-settings").innerHTML = data[i].settings.title;
 
+            // Tabs
+            if (data[i].settings.tabs) {
+                const tabGeneral = document.querySelector(".tab-label-general");
+                if (tabGeneral) tabGeneral.innerHTML = data[i].settings.tabs.general;
+
+                const tabMirrors = document.querySelector(".tab-label-mirrors");
+                if (tabMirrors) tabMirrors.innerHTML = data[i].settings.tabs.mirrors;
+            }
+
+            // General tab texts
+            if (data[i].settings.generalTab) {
+                const sub = document.querySelector(".general-setting-subtitle");
+                if (sub) sub.innerHTML = data[i].settings.generalTab.subtitle;
+
+                const onTitle = document.querySelector(".up-on-card-title");
+                if (onTitle) onTitle.innerHTML = data[i].settings.generalTab.autoTitle;
+                const onDesc = document.querySelector(".up-on-card-desc");
+                if (onDesc) onDesc.innerHTML = data[i].settings.generalTab.autoDesc;
+
+                const onlyTitle = document.querySelector(".up-only-card-title");
+                if (onlyTitle) onlyTitle.innerHTML = data[i].settings.generalTab.checkTitle;
+                const onlyDesc = document.querySelector(".up-only-card-desc");
+                if (onlyDesc) onlyDesc.innerHTML = data[i].settings.generalTab.checkDesc;
+
+                const offTitle = document.querySelector(".up-off-card-title");
+                if (offTitle) offTitle.innerHTML = data[i].settings.generalTab.neverTitle;
+                const offDesc = document.querySelector(".up-off-card-desc");
+                if (offDesc) offDesc.innerHTML = data[i].settings.generalTab.neverDesc;
+            }
+
             // Auto update option
             document.querySelector(".up-apps-auto").innerHTML = data[i].settings.autoUpdateOption.title;
 
@@ -128,6 +230,40 @@ function applyTranslationPages() {
             const upOff = document.querySelectorAll(".up-off");
             for (let b = 0; b < upOff.length; b++) {
                 upOff[b].innerHTML = data[i].settings.autoUpdateOption.neverUpdate;
+            }
+
+            // Mirror options
+            if (data[i].settings.mirrorTab) {
+                const activeTag = document.querySelector(".mirror-active-tag");
+                if (activeTag) activeTag.innerHTML = data[i].settings.mirrorTab.activeTag;
+
+                const activeDesc = document.querySelector(".mirror-active-desc");
+                if (activeDesc) activeDesc.innerHTML = data[i].settings.mirrorTab.activeDesc;
+            }
+
+            if (data[i].settings.mirrorOption) {
+                const mirrorTitle = document.querySelector(".mirror-setting-title");
+                if (mirrorTitle) mirrorTitle.innerHTML = data[i].settings.mirrorOption.title;
+
+                const mirrorDiagTitle = document.querySelector(".mirror-diag-title");
+                if (mirrorDiagTitle) mirrorDiagTitle.innerHTML = data[i].settings.mirrorOption.diagTitle;
+
+                const thServer = document.querySelector(".th-server");
+                if (thServer) thServer.innerHTML = data[i].settings.mirrorOption.colServer;
+
+                const thPing = document.querySelector(".th-ping");
+                if (thPing) thPing.innerHTML = data[i].settings.mirrorOption.colPing;
+
+                const thSpeed = document.querySelector(".th-speed");
+                if (thSpeed) thSpeed.innerHTML = data[i].settings.mirrorOption.colSpeed;
+
+                const thAction = document.querySelector(".th-action");
+                if (thAction) thAction.innerHTML = data[i].settings.mirrorOption.colAction;
+
+                const testBtnText = document.querySelector("#btn-test-mirrors-text");
+                if (testBtnText && !window.isTestingMirrors) {
+                    testBtnText.innerHTML = data[i].settings.mirrorOption.btnTest;
+                }
             }
         }
     }

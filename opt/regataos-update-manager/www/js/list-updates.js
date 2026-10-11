@@ -96,21 +96,22 @@ function listUpdatedQueue() {
 	if (Object.keys(appQueueElements).length === 0) return;
 
 	// Read each status file once, outside the loop.
-	const listAppsQueue           = fs.readFileSync("/tmp/regataos-update/list-apps-queue.txt", "utf8");
-	const downloadableApplication = fs.readFileSync("/tmp/regataos-update/downloadable-application.txt", "utf8");
-	const installingApplication   = fs.readFileSync("/tmp/regataos-update/installing-application.txt", "utf8");
-	const updatedApplication      = fs.readFileSync("/tmp/regataos-update/updated-apps.txt", "utf8");
+	const listAppsQueue           = fs.existsSync("/tmp/regataos-update/list-apps-queue.txt") ? fs.readFileSync("/tmp/regataos-update/list-apps-queue.txt", "utf8") : "";
+	const downloadableApplication = fs.existsSync("/tmp/regataos-update/downloadable-application.txt") ? fs.readFileSync("/tmp/regataos-update/downloadable-application.txt", "utf8") : "";
+	const installingApplication   = fs.existsSync("/tmp/regataos-update/installing-application.txt") ? fs.readFileSync("/tmp/regataos-update/installing-application.txt", "utf8") : "";
+	const updatedApplication      = fs.existsSync("/tmp/regataos-update/updated-apps.txt") ? fs.readFileSync("/tmp/regataos-update/updated-apps.txt", "utf8") : "";
 	const otherUpInProgress       = fs.existsSync('/tmp/regataos-update/other-updates-in-progress.txt');
 
 	for (const nickname in appQueueElements) {
 		const els = appQueueElements[nickname];
 
-		// Resolve the new state for this app.
+		// Resolve the new state for this app with proper priority:
+		// concluded > installing > downloading > pending > default
 		let newState;
-		if      (listAppsQueue.includes(nickname))            newState = "pending";
-		else if (downloadableApplication.includes(nickname))  newState = "downloading";
+		if      (updatedApplication.includes(nickname))       newState = "concluded";
 		else if (installingApplication.includes(nickname))    newState = "installing";
-		else if (updatedApplication.includes(nickname))       newState = "concluded";
+		else if (downloadableApplication.includes(nickname))  newState = "downloading";
+		else if (listAppsQueue.includes(nickname))            newState = "pending";
 		else                                                   newState = otherUpInProgress ? "none" : "update";
 
 		// Skip DOM update if state hasn't changed since last tick.
