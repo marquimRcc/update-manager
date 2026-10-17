@@ -29,6 +29,10 @@ function upd_system() {
     notify-send -i regataos-up-mg-none-notify -u normal -a 'Regata OS Update' "Sistema atualizado!" "O sistema foi atualizado com sucesso."
 }
 
+function bg_running() {
+    notify-send -i regataos-up-mg-none-notify -u normal -a 'Regata OS Update' "Regata OS Update" "A aplicação continua em execução em segundo plano."
+}
+
 # Run options
 case $1 in
     "-check-up") check_update
@@ -40,6 +44,8 @@ case $1 in
     "-up-system") up_system
         ;;
     "-upd-system") upd_system
+        ;;
+    "-bg-running") bg_running
         ;;
    *) echo "Invalid option!"
       exit 1

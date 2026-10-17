@@ -2,7 +2,12 @@
 
 # Show the Update Manager window
 function show_up_window() {
-    cd /usr/share/applications/; gtk-launch "regataos-update-manager.desktop"
+    ps -C "regataosupdate" > /dev/null
+    if [ $? = 0 ]; then
+        touch "/tmp/regataos-update/show-window.txt"
+    else
+        cd /usr/share/applications/; gtk-launch "regataos-update-manager.desktop"
+    fi
 }
 
 # Show/hide the Update Manager window, keeping the icon in the system tray.
@@ -11,8 +16,7 @@ function show_hide_up_window() {
     if [ $? = 1 ]; then
         show_up_window
     else
-        # Close Update Manager app
-        kill -SIGTERM $(ps -C regataosupdate | head -2 | tail -1 | awk '{print $1}')
+        touch "/tmp/regataos-update/toggle-window.txt"
     fi
 }
 
@@ -20,12 +24,11 @@ function show_hide_up_window() {
 function install_updates() {
     ps -C "regataosupdate" > /dev/null
     if [ $? = 0 ]; then
-        # Close Update Manager app
-        kill -SIGTERM $(ps -C regataosupdate | head -2 | tail -1 | awk '{print $1}')
+        touch "/tmp/regataos-update/show-window.txt"
+    else
+        cd /usr/share/applications/
+        gtk-launch "regataos-update-manager.desktop"
     fi
-
-    cd /usr/share/applications/
-    gtk-launch "regataos-update-manager.desktop"
     echo "" > "/tmp/regataos-update/install-updates.txt"
 }
 
