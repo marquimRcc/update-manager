@@ -282,22 +282,53 @@ function checkUpdatesManually() {
 	exec(commandLine, function (error, call, errlog) { });
 }
 
-// Cancel checking for updates (Opção 1.B)
+// Cancel checking for updates
 function cancelCheckingUpdates() {
 	const fs = require('fs');
 	const exec = require('child_process').exec;
 
-	let returnStatus = "no-updates";
-	if (fs.existsSync("/tmp/regataos-update/package-list.txt")) {
-		const pkg = fs.readFileSync("/tmp/regataos-update/package-list.txt", "utf8").trim();
-		if (pkg.length > 0) {
-			returnStatus = "show-updates";
+	// Determina o status de repouso correto com base na configuração do usuário
+	let restingStatus = "no-updates";
+	try {
+		const regataosUpConfig = "/tmp/regataos-update/config/regataos-update.conf";
+		if (fs.existsSync(regataosUpConfig)) {
+			const conf = fs.readFileSync(regataosUpConfig, "utf8");
+			if (conf.includes("autoupdate=3")) {
+				restingStatus = "never-updates";
+			}
 		}
+	} catch (e) { }
+
+	// Se já havia pacotes listados antes, preserva show-updates; caso contrário, vai para tela de repouso
+	let returnStatus = restingStatus;
+	if (fs.existsSync("/tmp/regataos-update/package-list.txt")) {
+		try {
+			const pkg = fs.readFileSync("/tmp/regataos-update/package-list.txt", "utf8").trim();
+			if (pkg.length > 0) {
+				returnStatus = "show-updates";
+			}
+		} catch (e) { }
 	}
 
-	const cmd = `sudo /opt/regataos-update-manager/scripts/regataos-up.sh -stop-up 2>/dev/null; \
-	             echo "${returnStatus}" > /tmp/regataos-update/status.txt; \
-	             echo "1" > /tmp/regataos-update/already_updated.txt`;
+	// 1. Atualiza o status imediatamente para destravar a UI do NW.js
+	try {
+		fs.writeFileSync("/tmp/regataos-update/status.txt", returnStatus + "\n", "utf8");
+		fs.writeFileSync("/tmp/regataos-update/already_updated.txt", "1\n", "utf8");
+	} catch (e) { }
+
+	if (typeof currentStatus === 'function') {
+		currentStatus();
+	}
+
+	// 2. Interrompe os processos de verificação em background (scripts e zypper)
+	const cmd = `pkill -TERM -f "regataos-check-up.sh" 2>/dev/null; \
+	             pkill -TERM -f "zypper.*refresh" 2>/dev/null; \
+	             killall check-update.py alert-update.py 2>/dev/null; \
+	             sleep 0.3; \
+	             pkill -9 -f "regataos-check-up.sh" 2>/dev/null; \
+	             pkill -9 -f "zypper.*refresh" 2>/dev/null; \
+	             rm -f /var/run/zypp.pid /var/run/zypper.pid 2>/dev/null; \
+	             echo "${returnStatus}" > /tmp/regataos-update/status.txt`;
 	exec(cmd, function (err, stdout, stderr) {
 		if (typeof currentStatus === 'function') {
 			currentStatus();
