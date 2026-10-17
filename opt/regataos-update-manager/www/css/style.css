@@ -2786,8 +2786,23 @@ body:has(.main.resting-active) {
 }
 
 .policy-card-icon {
-    font-size: 18px;
-    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: #24292e;
+    flex-shrink: 0;
+}
+
+.policy-card-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .policy-card-title {
@@ -3129,6 +3144,9 @@ body:has(.main.resting-active) {
     }
     .policy-card-title {
         color: #eff0f1;
+    }
+    .policy-card-icon {
+        color: #cbd5e1;
     }
     .policy-card-desc {
         color: #9aa5b1;
