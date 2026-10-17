@@ -20,7 +20,7 @@ def is_update_in_progress():
     if os.path.exists(status_file):
         try:
             with open(status_file, "r") as f:
-                content = f.read()
+                content = f.read().strip()
                 if "installing-updates" in content or "check-updates" in content:
                     return True
         except Exception:
@@ -34,9 +34,14 @@ def is_update_in_progress():
     ]
     for p in progress_files:
         if os.path.exists(p):
-            return True
+            try:
+                with open(p, "r") as f:
+                    if len(f.read().strip()) > 0:
+                        return True
+            except Exception:
+                pass
 
-    ret = os.system("pgrep -f 'zypper|regataos-up.sh|regataos-up-all.sh|regataos-check-up.sh' >/dev/null 2>&1")
+    ret = os.system("pgrep -x 'zypper' >/dev/null 2>&1 || pgrep -f 'regataos-up\\.sh|regataos-up-all\\.sh|regataos-up-specific\\.sh|regataos-other-up\\.sh' >/dev/null 2>&1")
     if ret == 0:
         return True
 
@@ -75,10 +80,12 @@ def close_app():
             script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "up_icontray_functions")
             os.system(f'/bin/bash "{script_path}" -force-close-app')
             QApplication.quit()
+            sys.exit(0)
     else:
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "up_icontray_functions")
         os.system(f'/bin/bash "{script_path}" -close-app')
         QApplication.quit()
+        sys.exit(0)
 
 def setup_tray_menu(parent):
     menu = QMenu(parent)

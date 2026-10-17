@@ -47,7 +47,7 @@ function isUpdateOrCheckInProgress() {
         } catch (e) { }
     }
 
-    // 2. Check active updater progress/flag files
+    // 2. Check active updater progress/flag files (must have non-empty content)
     const progressFiles = [
         "/tmp/regataos-update/other-updates-in-progress.txt",
         "/tmp/regataos-update/update-specific-in-progress.txt",
@@ -56,13 +56,17 @@ function isUpdateOrCheckInProgress() {
     ];
     for (const file of progressFiles) {
         if (fs.existsSync(file)) {
-            return true;
+            try {
+                if (fs.readFileSync(file, "utf8").trim().length > 0) {
+                    return true;
+                }
+            } catch (e) { }
         }
     }
 
-    // 3. Check active update processes (zypper, regataos-up, regataos-check-up)
+    // 3. Check active update processes (zypper or actual updaters)
     try {
-        const procCheck = execSync("pgrep -f 'zypper|regataos-up.sh|regataos-up-all.sh|regataos-check-up.sh' 2>/dev/null", { encoding: "utf8" }).trim();
+        const procCheck = execSync("pgrep -x 'zypper' 2>/dev/null || pgrep -f 'regataos-up\\.sh|regataos-up-all\\.sh|regataos-up-specific\\.sh|regataos-other-up\\.sh' 2>/dev/null", { encoding: "utf8" }).trim();
         if (procCheck.length > 0) {
             return true;
         }
