@@ -20,9 +20,14 @@ setTimeout(function () {
 let isWindowHidden = false;
 
 function showMainWindow() {
+    win.setShowInTaskbar(true);
     win.show();
     win.restore();
+    win.setAlwaysOnTop(true);
     win.focus();
+    setTimeout(() => {
+        try { win.setAlwaysOnTop(false); } catch (e) { }
+    }, 150);
     isWindowHidden = false;
 }
 
@@ -156,13 +161,9 @@ setInterval(function () {
 
     if (fs.existsSync(toggleSignal)) {
         try { fs.unlinkSync(toggleSignal); } catch (e) { }
-        if (isWindowHidden) {
-            showMainWindow();
-        } else {
-            hideMainWindow();
-        }
+        showMainWindow();
     }
-}, 300);
+}, 150);
 
 // Also restore window if launched again while running
 if (nw.App) {

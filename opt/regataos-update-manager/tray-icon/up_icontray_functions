@@ -5,19 +5,15 @@ function show_up_window() {
     ps -C "regataosupdate" > /dev/null
     if [ $? = 0 ]; then
         touch "/tmp/regataos-update/show-window.txt"
+        xdotool search --name "Regata OS Update" windowactivate 2>/dev/null || true
     else
-        cd /usr/share/applications/; gtk-launch "regataos-update-manager.desktop"
+        cd /usr/share/applications/; gtk-launch "regataos-update-manager.desktop" 2>/dev/null || /usr/bin/regataos-update-manager &
     fi
 }
 
-# Show/hide the Update Manager window, keeping the icon in the system tray.
+# Show/open the Update Manager window when clicking the tray icon
 function show_hide_up_window() {
-    ps -C "regataosupdate" > /dev/null
-    if [ $? = 1 ]; then
-        show_up_window
-    else
-        touch "/tmp/regataos-update/toggle-window.txt"
-    fi
+    show_up_window
 }
 
 # Install updates

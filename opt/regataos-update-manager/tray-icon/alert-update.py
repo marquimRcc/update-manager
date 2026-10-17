@@ -6,7 +6,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from tray_common import setup_tray_menu, get_text
+from tray_common import setup_tray_menu, get_text, open_app
 
 class SystemTrayIcon(QSystemTrayIcon):
     def __init__(self, icon, parent=None):
@@ -17,9 +17,8 @@ class SystemTrayIcon(QSystemTrayIcon):
         self.activated.connect(self.onTrayIconActivated)
 
     def onTrayIconActivated(self, reason):
-        if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "up_icontray_functions")
-            os.system(f'/bin/bash "{script_path}" -show-hide-up')
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+            open_app()
 
 def main():
     app = QApplication(sys.argv)
