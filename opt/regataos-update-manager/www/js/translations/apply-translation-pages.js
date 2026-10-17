@@ -156,6 +156,22 @@ function applyTranslationPages() {
                 pillLabel.innerHTML = isPt ? "Última checagem:" : "Last check:";
             }
 
+            const stageTag = document.getElementById("split-circle-stage-tag");
+            if (stageTag) {
+                const txt = stageTag.textContent.trim();
+                if (txt.includes("Etapa 1") || txt.includes("Stage 1")) {
+                    stageTag.textContent = isPt ? "Etapa 1: Verificação" : "Stage 1: Checking";
+                } else if (txt.includes("Etapa 2") || txt.includes("Stage 2")) {
+                    stageTag.textContent = isPt ? "Etapa 2: Download" : "Stage 2: Download";
+                } else if (txt.includes("Etapa 3") || txt.includes("Stage 3")) {
+                    stageTag.textContent = isPt ? "Etapa 3: Instalação" : "Stage 3: Installation";
+                } else if (txt.includes("Atualizações prontas") || txt.includes("Updates ready")) {
+                    stageTag.textContent = isPt ? "Atualizações prontas" : "Updates ready";
+                } else if (txt.includes("Concluído") || txt.includes("Completed")) {
+                    stageTag.textContent = isPt ? "Concluído" : "Completed";
+                }
+            }
+
             // System updates status
             const otherUpStatusWaiting = document.querySelectorAll(".otherup-app-status-waiting");
             for (let b = 0; b < otherUpStatusWaiting.length; b++) {

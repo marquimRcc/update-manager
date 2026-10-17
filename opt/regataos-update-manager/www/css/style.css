@@ -1940,6 +1940,31 @@ body:has(.main.resting-active) {
     color: #005fb8;
 }
 
+.split-circle-stage-tag {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    color: #005fb8;
+    background: rgba(0, 95, 184, 0.1);
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-top: 10px;
+    transition: all 0.3s ease;
+}
+
+.split-circle-stage-desc {
+    font-size: 11px;
+    color: #777;
+    margin-top: 4px;
+    text-align: center;
+    max-width: 210px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.3s ease;
+}
+
 .split-vertical-steps {
     display: flex;
     flex-direction: column;
@@ -2519,6 +2544,15 @@ body:has(.main.resting-active) {
 
     .split-circle-section .circle-percentage {
         color: #218eff;
+    }
+
+    .split-circle-stage-tag {
+        color: #64b5f6;
+        background: rgba(100, 181, 246, 0.14);
+    }
+
+    .split-circle-stage-desc {
+        color: #9aa5b1;
     }
 
     .v-step::after {

@@ -223,12 +223,16 @@ function updateGlobalProgressWidget(state) {
     const verifyDetails = document.getElementById('install-verify-details');
     const downloadDetails = document.getElementById('install-download-details');
     const installDetails = document.getElementById('install-install-details');
+    const stageTag = document.getElementById('split-circle-stage-tag');
+    const stageDesc = document.getElementById('split-circle-stage-desc');
 
     const { percent, downloaded, installed, total, speed, isConcluded, hasActiveInstalls } = state;
 
     setProgressArc(circle, text, percent, false);
 
     if (isConcluded) {
+        if (stageTag) stageTag.textContent = 'Concluído';
+        if (stageDesc) stageDesc.textContent = total > 0 ? `${total} pacotes atualizados` : 'Todas as etapas finalizadas';
         if (stepVerify) stepVerify.className = 'v-step completed';
         if (stepDownload) stepDownload.className = 'v-step completed';
         if (stepInstall) stepInstall.className = 'v-step completed';
@@ -236,6 +240,20 @@ function updateGlobalProgressWidget(state) {
         if (downloadDetails) downloadDetails.textContent = total > 0 ? `(${total} de ${total})` : 'Concluído';
         if (installDetails) installDetails.textContent = total > 0 ? `(${total} de ${total})` : 'Concluído';
         return;
+    }
+
+    if (hasActiveInstalls || installed > 0) {
+        if (stageTag) stageTag.textContent = 'Etapa 3: Instalação';
+        if (stageDesc) {
+            stageDesc.textContent = total > 0 ? `${installed} de ${total} pacotes` : 'Instalando pacotes...';
+        }
+    } else {
+        if (stageTag) stageTag.textContent = 'Etapa 2: Download';
+        if (stageDesc) {
+            let desc = total > 0 ? `${downloaded} de ${total} pacotes` : 'Baixando pacotes...';
+            if (speed) desc += ` • ${speed}`;
+            stageDesc.textContent = desc;
+        }
     }
 
     // Step 1: Verificando
@@ -400,17 +418,23 @@ function systemUpdatesProgress() {
             if (stepInstallTitle) stepInstallTitle.textContent = '3. Instalação';
             if (installDetails) installDetails.textContent = 'Aguardando verificação';
 
+            const stageTag = document.getElementById('split-circle-stage-tag');
+            const stageDesc = document.getElementById('split-circle-stage-desc');
+            if (stageTag) stageTag.textContent = 'Etapa 1: Verificação';
+
             if (currentRepos > 0) {
                 const pct = Math.min(100, Math.round((currentRepos / totalRepos) * 100));
                 setProgressArc(circle, text, pct, false);
                 if (text) text.textContent = pct + '%';
                 if (verifyDetails) verifyDetails.textContent = `(${currentRepos} de ${totalRepos} repositórios)`;
                 if (checkingLabel) checkingLabel.textContent = `Sincronizando repositório ${currentRepos} de ${totalRepos}...`;
+                if (stageDesc) stageDesc.textContent = `${currentRepos} de ${totalRepos} repositórios`;
             } else {
                 setProgressArc(circle, text, 0, true);
                 if (text) text.textContent = '0%';
                 if (verifyDetails) verifyDetails.textContent = `(0 de ${totalRepos} repositórios)`;
                 if (checkingLabel) checkingLabel.textContent = 'Consultando repositórios do sistema...';
+                if (stageDesc) stageDesc.textContent = 'Consultando repositórios...';
             }
 
             // Backward compatibility for old widgets if present
@@ -464,6 +488,13 @@ function systemUpdatesProgress() {
             const verifyDetails = document.getElementById('install-verify-details');
             const downloadDetails = document.getElementById('install-download-details');
             const installDetails = document.getElementById('install-install-details');
+
+            const stageTag = document.getElementById('split-circle-stage-tag');
+            const stageDesc = document.getElementById('split-circle-stage-desc');
+            if (stageTag) stageTag.textContent = 'Atualizações prontas';
+            if (stageDesc) {
+                stageDesc.textContent = totalShow > 0 ? `${totalShow} itens prontos para atualizar` : 'Pronto para atualizar';
+            }
 
             setProgressArc(circle, text, 0, false);
             if (text) text.textContent = '0%';
