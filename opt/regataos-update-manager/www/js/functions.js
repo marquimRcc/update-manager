@@ -238,7 +238,14 @@ function cancelSpecificApp(nickname) {
 
 // Check for updates manually
 function checkUpdatesManually() {
+	const fs = require('fs');
 	const exec = require('child_process').exec;
+	try {
+		fs.writeFileSync("/tmp/regataos-update/status.txt", "check-updates\n", "utf8");
+	} catch (e) { }
+	if (typeof currentStatus === 'function') {
+		currentStatus();
+	}
 	const commandLine = "/opt/regataos-update-manager/scripts/update-manager-option -update-button";
 	exec(commandLine, function (error, call, errlog) { });
 }

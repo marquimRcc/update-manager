@@ -501,88 +501,222 @@ h1 {
     animation: spin 1.5s linear infinite;
 }
 
-#main-without-update {
+/* ===================================================
+   LAYOUT 2: TELA ÚNICA EM REPOUSO (HERO VIEW)
+   =================================================== */
+
+#main-without-update.resting-hero-container {
     display: none;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    box-sizing: border-box;
+    padding: 24px 36px 32px 36px;
+    background-color: #ffffff;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInHero 0.35s ease-out;
 }
 
-.updated-system {
-    display: block;
-    position: relative;
-    width: 140px;
-    padding-right: 58px;
-    margin-left: auto;
-    margin-right: auto;
-    animation-name: animatebottom;
-    animation-duration: .5s;
+@keyframes fadeInHero {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.updated-system-img {
-    display: block;
-    position: relative;
-    height: 140px;
-    width: 140px;
-    background-position: 50% 50%;
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
+/* Top bar with Title & Badge */
+.resting-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #edf0f2;
 }
 
-.updated-system-check-button {
-    display: block;
-    position: relative;
-    width: 258px;
-    padding-right: 58px;
-    margin-top: 20px;
-    margin-left: auto;
-    margin-right: auto;
-    animation-name: animatebottom;
-    animation-duration: .5s;
+.resting-brand-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    letter-spacing: -0.3px;
+    font-family: inherit;
 }
 
-.check-updates-button-status {
-    display: block;
-    position: relative;
-    width: 300px;
+.resting-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 14px;
+    background: #eafaf1;
+    border: 1px solid #c2f0d4;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #16a34a;
+    transition: all 0.3s ease;
+}
+
+.resting-badge.never-updates-mode {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #64748b;
+}
+
+.resting-badge-dot {
+    font-size: 10px;
+    line-height: 1;
+}
+
+/* Center Hero Section */
+.resting-center-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
     text-align: center;
-    padding-right: 58px;
-    margin-left: auto;
-    margin-right: auto;
-    animation-name: animatebottom;
-    animation-duration: .5s;
+    margin-top: -30px;
 }
 
-#check-updates-button-title {
-    font-size: 25px;
+.resting-icon-wrapper {
+    margin-bottom: 22px;
 }
 
-#check-updates-button-desc {
-    font-size: 19px;
-    color: #333;
+.resting-icon-glow {
+    width: 108px;
+    height: 108px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 114, 239, 0.12) 0%, rgba(0, 114, 239, 0.03) 70%, transparent 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: restingPulseGlow 3.5s ease-in-out infinite alternate;
 }
 
-#check-updates-button {
-    float: right;
+@keyframes restingPulseGlow {
+    0% {
+        transform: scale(0.96);
+        box-shadow: 0 0 0 0 rgba(0, 114, 239, 0.15);
+    }
+    100% {
+        transform: scale(1.04);
+        box-shadow: 0 0 35px 10px rgba(0, 114, 239, 0.08);
+    }
+}
+
+.resting-icon-circle {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0072ef 0%, #0050b8 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(0, 102, 204, 0.35);
+}
+
+.resting-icon-check {
+    width: 32px;
+    height: 32px;
+    fill: #ffffff;
+}
+
+.resting-hero-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 10px 0;
+    letter-spacing: -0.5px;
+    font-family: inherit;
+}
+
+.resting-hero-subtitle {
+    font-size: 15px;
+    color: #64748b;
+    max-width: 520px;
+    margin: 0 0 28px 0;
+    line-height: 1.5;
+}
+
+.resting-action-wrapper {
+    margin-bottom: 28px;
+}
+
+.btn-resting-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 13px 32px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    background: linear-gradient(135deg, #0066d6 0%, #004fb0 100%);
+    border: none;
+    border-radius: 30px;
     cursor: pointer;
-    color: #fff;
-    font: 18px 'Oxygen', sans-serif;
-    text-align: center;
-    background-color: #005fb8;
-    background-position: center;
-    border-radius: 2em;
-    box-shadow: 0 1px 4px rgb(0 0 0 / 30%);
-    margin-right: 20px;
-    padding: 5px 23px;
-    transition: all 0.5s ease-in-out;
+    box-shadow: 0 4px 16px rgba(0, 102, 214, 0.35);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    user-select: none;
 }
 
-#check-updates-button:hover {
-    background: #013260 radial-gradient(circle, transparent 1%, #013260 1%) center/15000%;
+.btn-resting-check:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 22px rgba(0, 102, 214, 0.45);
+    background: linear-gradient(135deg, #0072ee 0%, #0058c4 100%);
 }
 
-#check-updates-button:active {
-    background-color: #005fb8;
-    background-size: 100%;
-    transition: all 0s;
+.btn-resting-check:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(0, 102, 214, 0.3);
 }
+
+.btn-resting-icon {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+    transition: transform 0.4s ease;
+}
+
+.btn-resting-check:hover .btn-resting-icon {
+    transform: rotate(45deg);
+}
+
+/* Metadata Pill - Apenas Data/Hora da última checagem (SEM SERVIDOR) */
+.resting-metadata-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 20px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.pill-clock-icon {
+    width: 15px;
+    height: 15px;
+    fill: #94a3b8;
+}
+
+.pill-label {
+    color: #64748b;
+}
+
+.pill-value {
+    font-weight: 600;
+    color: #334155;
+}
+
 
 @keyframes spin {
     0% {
@@ -1730,11 +1864,14 @@ h1 {
 
 /* Option 3: Split View (Stages & Progress on Left, Updates List on Right) */
 body:has(#main-with-update[style*="display: flex"]),
-body:has(.main.split-active) {
+body:has(#main-without-update[style*="display: flex"]),
+body:has(.main.split-active),
+body:has(.main.resting-active) {
     overflow: hidden;
 }
 
-.main.split-active {
+.main.split-active,
+.main.resting-active {
     width: 100% !important;
     max-width: 100% !important;
     height: 100vh !important;
@@ -3056,6 +3193,59 @@ body:has(.main.split-active) {
     }
     .mirror-test-summary {
         color: #9aa5b1;
+    }
+
+    /* Resting Hero View Dark Mode */
+    #main-without-update.resting-hero-container {
+        background-color: #1a1e24;
+    }
+    .resting-top-bar {
+        border-bottom-color: #2b323c;
+    }
+    .resting-brand-title {
+        color: #f1f5f9;
+    }
+    .resting-badge {
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.28);
+        color: #4ade80;
+    }
+    .resting-badge.never-updates-mode {
+        background: rgba(148, 163, 184, 0.12);
+        border-color: rgba(148, 163, 184, 0.25);
+        color: #94a3b8;
+    }
+    .resting-icon-glow {
+        background: radial-gradient(circle, rgba(0, 120, 240, 0.22) 0%, rgba(0, 120, 240, 0.05) 70%, transparent 100%);
+    }
+    .resting-icon-circle {
+        background: linear-gradient(135deg, #0078d4 0%, #005fb8 100%);
+        box-shadow: 0 6px 24px rgba(0, 120, 240, 0.4);
+    }
+    .resting-hero-title {
+        color: #f8fafc;
+    }
+    .resting-hero-subtitle {
+        color: #94a3b8;
+    }
+    .btn-resting-check {
+        background: linear-gradient(135deg, #0078d4 0%, #005fb8 100%);
+        box-shadow: 0 4px 18px rgba(0, 120, 212, 0.4);
+    }
+    .btn-resting-check:hover {
+        background: linear-gradient(135deg, #1084e3 0%, #006cd4 100%);
+        box-shadow: 0 6px 22px rgba(0, 120, 212, 0.5);
+    }
+    .resting-metadata-pill {
+        background: #202630;
+        border-color: #2e3745;
+        color: #94a3b8;
+    }
+    .pill-value {
+        color: #e2e8f0;
+    }
+    .pill-clock-icon {
+        fill: #64748b;
     }
 }
 

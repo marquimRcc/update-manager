@@ -31,8 +31,8 @@
                 "concluded": "Concluído!",
                 "checking": "Verificando...",
                 "verify": "Verificar atualizações",
-                "allReady": "Tudo pronto",
-                "allReadyDesc": "Todos os apps estão atualizados"
+                "allReady": "Tudo pronto por aqui!",
+                "allReadyDesc": "O Regata OS e todos os seus aplicativos instalados estão na versão estável mais recente."
             },
             "otherUpdates": {
                 "title": "Atualizações do sistema",

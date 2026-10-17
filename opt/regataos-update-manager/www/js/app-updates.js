@@ -40,6 +40,83 @@ autoUpdate();
 
 let wasInstalling = false;
 let isTransitioningToUpdated = false;
+let previousStatus = "";
+
+function saveLastCheckTimestamp() {
+    const fs = require('fs');
+    const nowIso = new Date().toISOString();
+    try {
+        fs.writeFileSync("/tmp/regataos-update/last-check.txt", nowIso, 'utf8');
+    } catch(e) {}
+    try {
+        const confDir = "/home/marcos/.config/regataos-update";
+        if (fs.existsSync(confDir)) {
+            fs.writeFileSync(`${confDir}/last-check.txt`, nowIso, 'utf8');
+        }
+    } catch(e) {}
+}
+
+function updateLastCheckTimeDisplay() {
+    const fs = require('fs');
+    const lastCheckFile = "/tmp/regataos-update/last-check.txt";
+    const userLastCheckFile = "/home/marcos/.config/regataos-update/last-check.txt";
+    const refreshLog = "/var/log/regataos-logs/regataos-refresh-repo.log";
+
+    let lastCheckDate = null;
+
+    if (fs.existsSync(userLastCheckFile)) {
+        try {
+            const raw = fs.readFileSync(userLastCheckFile, 'utf8').trim();
+            const parsed = new Date(raw);
+            if (!isNaN(parsed.getTime())) lastCheckDate = parsed;
+        } catch(e) {}
+    }
+
+    if (!lastCheckDate && fs.existsSync(lastCheckFile)) {
+        try {
+            const raw = fs.readFileSync(lastCheckFile, 'utf8').trim();
+            const parsed = new Date(raw);
+            if (!isNaN(parsed.getTime())) lastCheckDate = parsed;
+        } catch(e) {}
+    }
+
+    if (!lastCheckDate && fs.existsSync(refreshLog)) {
+        try {
+            const stats = fs.statSync(refreshLog);
+            lastCheckDate = stats.mtime;
+        } catch(e) {}
+    }
+
+    if (!lastCheckDate) {
+        lastCheckDate = new Date();
+    }
+
+    const now = new Date();
+    const isToday = now.toDateString() === lastCheckDate.toDateString();
+    const hours = String(lastCheckDate.getHours()).padStart(2, '0');
+    const minutes = String(lastCheckDate.getMinutes()).padStart(2, '0');
+
+    let isPt = true;
+    try {
+        if (typeof selectTranslationFile === 'function') {
+            isPt = selectTranslationFile().includes('pt');
+        }
+    } catch(e) {}
+
+    let formatted = "";
+    if (isToday) {
+        formatted = isPt ? `Hoje, às ${hours}:${minutes}` : `Today, at ${hours}:${minutes}`;
+    } else {
+        const day = String(lastCheckDate.getDate()).padStart(2, '0');
+        const month = String(lastCheckDate.getMonth() + 1).padStart(2, '0');
+        formatted = isPt ? `${day}/${month} às ${hours}:${minutes}` : `${month}/${day} at ${hours}:${minutes}`;
+    }
+
+    const pillVal = document.getElementById("resting-last-check-time");
+    if (pillVal) {
+        pillVal.textContent = formatted;
+    }
+}
 
 // Display elements on the screen according to the current status
 setInterval(currentStatus, 500);
@@ -50,67 +127,85 @@ function currentStatus() {
     if (fs.existsSync(statusFile)) {
         const getCurrentStatus = fs.readFileSync(statusFile, "utf8");
 
-        const neverTitle = document.querySelector(".never-update-title");
-        const checkTitle = document.querySelector(".check-update-title");
-        const installTitle = document.querySelector(".installing-update-title");
-        const searchStatus = document.querySelector(".search-update-status");
-        const withoutTitle = document.querySelector(".without-update-title");
-        const withTitle = document.querySelector(".with-update-title");
-        const updatedTitle = document.querySelector(".updated-system-title");
-
         const mainNever = document.querySelector("#main-never-update");
         const mainCheck = document.querySelector("#main-check-update");
         const mainInstall = document.querySelector("#main-install-update");
         const mainWithout = document.querySelector("#main-without-update");
         const mainWith = document.querySelector("#main-with-update");
         const div1 = document.querySelector(".div1");
-        const div1Sub = document.querySelector(".div1-sub");
         const mainEl = document.querySelector(".main");
 
         if (isTransitioningToUpdated) {
             return;
         }
 
-        const splitHeaderChecking = document.querySelector("#split-header-checking");
-        const splitHeaderUpdates = document.querySelector("#split-header-updates");
-        const splitHeaderUpdated = document.querySelector("#split-header-updated");
-        const splitCheckingView = document.querySelector("#split-checking-view");
-        const splitUpdatedView = document.querySelector("#split-updated-view");
-        const splitRightCards = document.querySelector("#split-right-cards");
-        const splitCheckBtnWrap = document.querySelector("#split-check-button-wrap");
-        const updateAll = document.querySelector(".split-left-footer .update-all");
+        // Record check completion timestamp on transition from check-updates
+        if (previousStatus.includes("check-updates") && !getCurrentStatus.includes("check-updates")) {
+            saveLastCheckTimestamp();
+        }
+        previousStatus = getCurrentStatus;
 
         if (div1) div1.style.display = "none";
         if (mainNever) mainNever.style.display = "none";
         if (mainCheck) mainCheck.style.display = "none";
         if (mainInstall) mainInstall.style.display = "none";
+
+        const splitHeaderChecking = document.querySelector("#split-header-checking");
+        const splitHeaderUpdates = document.querySelector("#split-header-updates");
+        const splitHeaderUpdated = document.querySelector("#split-header-updated");
+        const splitCheckingView = document.querySelector("#split-checking-view");
+        const splitRightCards = document.querySelector("#split-right-cards");
+        const splitCheckBtnWrap = document.querySelector("#split-check-button-wrap");
+        const updateAll = document.querySelector(".split-left-footer .update-all");
+
+        // Layout 2: Resting View (Tela Única em Repouso)
+        const isResting = getCurrentStatus.includes("never-updates") ||
+                          getCurrentStatus.includes("no-updates") ||
+                          (getCurrentStatus.includes("updated") && !wasInstalling);
+
+        if (isResting) {
+            if (mainWith) mainWith.style.display = "none";
+            if (mainWithout) mainWithout.style.display = "flex";
+            if (mainEl) {
+                mainEl.classList.remove("split-active");
+                mainEl.classList.add("resting-active");
+            }
+
+            const restingBadge = document.querySelector(".resting-badge");
+            const restingBadgeText = document.querySelector(".resting-badge-text");
+            const restingSubtitle = document.getElementById("resting-hero-subtitle");
+            const btnCheckText = document.getElementById("btn-resting-check-text");
+
+            if (getCurrentStatus.includes("never-updates")) {
+                if (restingBadge) restingBadge.classList.add("never-updates-mode");
+                if (restingBadgeText) restingBadgeText.textContent = "Verificação manual";
+                if (restingSubtitle) restingSubtitle.textContent = "A busca automática de atualizações está desativada nas configurações.";
+                if (btnCheckText) btnCheckText.textContent = "Verificar agora";
+            } else {
+                if (restingBadge) restingBadge.classList.remove("never-updates-mode");
+                if (restingBadgeText) restingBadgeText.textContent = "Sistema Atualizado";
+                if (restingSubtitle) restingSubtitle.textContent = "O Regata OS e todos os seus aplicativos instalados estão na versão estável mais recente.";
+                if (btnCheckText) btnCheckText.textContent = "Verificar se há atualizações";
+            }
+
+            updateLastCheckTimeDisplay();
+            applyTranslationPages();
+            return;
+        }
+
+        // Active States (Split-View Container)
         if (mainWithout) mainWithout.style.display = "none";
         if (mainWith) mainWith.style.display = "flex";
-        if (mainEl) mainEl.classList.add("split-active");
+        if (mainEl) {
+            mainEl.classList.remove("resting-active");
+            mainEl.classList.add("split-active");
+        }
 
-        if (getCurrentStatus.includes("never-updates")) {
-            if (splitHeaderChecking) splitHeaderChecking.style.display = "none";
-            if (splitHeaderUpdates) splitHeaderUpdates.style.display = "none";
-            if (splitHeaderUpdated) splitHeaderUpdated.style.display = "block";
-            if (splitCheckingView) splitCheckingView.style.display = "none";
-            if (splitUpdatedView) splitUpdatedView.style.display = "flex";
-            if (splitRightCards) splitRightCards.style.display = "none";
-            if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "block";
-            if (updateAll) updateAll.style.display = "none";
-
-            const stepVerify = document.getElementById('install-step-verify');
-            const stepVerifyTitle = document.getElementById('install-step-verify-title');
-            const verifyDetails = document.getElementById('install-verify-details');
-            if (stepVerify) stepVerify.className = 'v-step';
-            if (stepVerifyTitle) stepVerifyTitle.textContent = '1. Verificação';
-            if (verifyDetails) verifyDetails.textContent = 'Desativada';
-
-        } else if (getCurrentStatus.includes("check-updates")) {
+        if (getCurrentStatus.includes("check-updates")) {
             if (splitHeaderChecking) splitHeaderChecking.style.display = "block";
             if (splitHeaderUpdates) splitHeaderUpdates.style.display = "none";
             if (splitHeaderUpdated) splitHeaderUpdated.style.display = "none";
             if (splitCheckingView) splitCheckingView.style.display = "flex";
-            if (splitUpdatedView) splitUpdatedView.style.display = "none";
             if (splitRightCards) splitRightCards.style.display = "none";
             if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "none";
             if (updateAll) updateAll.style.display = "none";
@@ -127,7 +222,6 @@ function currentStatus() {
             if (splitHeaderUpdates) splitHeaderUpdates.style.display = "block";
             if (splitHeaderUpdated) splitHeaderUpdated.style.display = "none";
             if (splitCheckingView) splitCheckingView.style.display = "none";
-            if (splitUpdatedView) splitUpdatedView.style.display = "none";
             if (splitRightCards) splitRightCards.style.display = "flex";
             if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "none";
 
@@ -141,7 +235,6 @@ function currentStatus() {
             if (splitHeaderUpdates) splitHeaderUpdates.style.display = "block";
             if (splitHeaderUpdated) splitHeaderUpdated.style.display = "none";
             if (splitCheckingView) splitCheckingView.style.display = "none";
-            if (splitUpdatedView) splitUpdatedView.style.display = "none";
             if (splitRightCards) splitRightCards.style.display = "flex";
             if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "none";
 
@@ -150,56 +243,20 @@ function currentStatus() {
             listUpdates();
             applyTranslationPages();
 
-        } else if ((getCurrentStatus.includes("no-updates")) || (getCurrentStatus.includes("updated"))) {
-            if (wasInstalling && getCurrentStatus.includes("updated")) {
+        } else if (getCurrentStatus.includes("updated")) {
+            if (wasInstalling) {
                 isTransitioningToUpdated = true;
                 const tot = (typeof window.lastKnownTotal !== 'undefined' && window.lastKnownTotal > 0) ? window.lastKnownTotal : 1;
                 if (typeof updateRegataProgressWidget === 'function') {
                     updateRegataProgressWidget('install-', { stage: 'concluded', currentStep: tot, totalSteps: tot, speed: '' });
                 }
+                saveLastCheckTimestamp();
                 setTimeout(() => {
                     wasInstalling = false;
                     isTransitioningToUpdated = false;
                     currentStatus();
                 }, 1800);
-                return;
             }
-
-            if (splitHeaderChecking) splitHeaderChecking.style.display = "none";
-            if (splitHeaderUpdates) splitHeaderUpdates.style.display = "none";
-            if (splitHeaderUpdated) splitHeaderUpdated.style.display = "block";
-            if (splitCheckingView) splitCheckingView.style.display = "none";
-            if (splitUpdatedView) splitUpdatedView.style.display = "flex";
-            if (splitRightCards) splitRightCards.style.display = "none";
-            if (splitCheckBtnWrap) splitCheckBtnWrap.style.display = "block";
-            if (updateAll) updateAll.style.display = "none";
-
-            // Left panel steps in completed state
-            const circle = document.getElementById('install-circle-progress');
-            const text = document.getElementById('install-circle-percentage');
-            const stepVerify = document.getElementById('install-step-verify');
-            const stepVerifyTitle = document.getElementById('install-step-verify-title');
-            const verifyDetails = document.getElementById('install-verify-details');
-            const stepDownload = document.getElementById('install-step-download');
-            const downloadDetails = document.getElementById('install-download-details');
-            const stepInstall = document.getElementById('install-step-install');
-            const installDetails = document.getElementById('install-install-details');
-
-            if (typeof setProgressArc === 'function') {
-                setProgressArc(circle, text, 100, false);
-            }
-            if (text) text.textContent = '100%';
-            if (stepVerify) stepVerify.className = 'v-step completed';
-            if (stepVerifyTitle) stepVerifyTitle.textContent = '1. Verificado';
-            if (verifyDetails) verifyDetails.textContent = 'Tudo atualizado';
-            if (stepDownload) stepDownload.className = 'v-step completed';
-            if (downloadDetails) downloadDetails.textContent = 'Concluído';
-            if (stepInstall) stepInstall.className = 'v-step completed';
-            if (installDetails) installDetails.textContent = 'Concluído';
-
-            showNumberUpdates();
-            autoUpdate();
-            applyTranslationPages();
         }
     }
 }

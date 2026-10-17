@@ -31,8 +31,8 @@
                 "concluded": "Concluded!",
                 "checking": "Checking...",
                 "verify": "Check for updates",
-                "allReady": "All ready",
-                "allReadyDesc": "All apps are up to date"
+                "allReady": "All ready here!",
+                "allReadyDesc": "Regata OS and all your installed apps are up to date with the latest stable versions."
             },
             "otherUpdates": {
                 "title": "System updates",

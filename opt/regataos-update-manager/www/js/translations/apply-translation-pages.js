@@ -101,11 +101,59 @@ function applyTranslationPages() {
             if (document.querySelector("#split-check-updates-button")) {
                 document.querySelector("#split-check-updates-button").innerHTML = data[i].home.updateStatus.verify;
             }
-            if (document.querySelector("#split-check-updates-button-title")) {
-                document.querySelector("#split-check-updates-button-title").innerHTML = data[i].home.updateStatus.allReady;
+
+            // Resting Hero View (Layout 2)
+            const restingHeroTitle = document.getElementById("resting-hero-title");
+            const restingHeroSubtitle = document.getElementById("resting-hero-subtitle");
+            const btnRestingCheckText = document.getElementById("btn-resting-check-text");
+            const restingBadgeText = document.querySelector(".resting-badge-text");
+            const pillLabel = document.querySelector(".pill-label");
+
+            const isPt = data[i].index.sideBar && data[i].index.sideBar.home === "Atualizações";
+            if (restingHeroTitle) {
+                restingHeroTitle.innerHTML = (data[i].home && data[i].home.updateStatus && data[i].home.updateStatus.allReady) || (isPt ? "Tudo pronto por aqui!" : "All ready here!");
             }
-            if (document.querySelector("#split-check-updates-button-desc")) {
-                document.querySelector("#split-check-updates-button-desc").innerHTML = data[i].home.updateStatus.allReadyDesc;
+            if (restingHeroSubtitle) {
+                const fs = require('fs');
+                const statusFile = "/tmp/regataos-update/status.txt";
+                let isNever = false;
+                if (fs.existsSync(statusFile)) {
+                    isNever = fs.readFileSync(statusFile, 'utf8').includes('never-updates');
+                }
+                if (isNever) {
+                    restingHeroSubtitle.innerHTML = isPt ? "A busca automática de atualizações está desativada nas configurações." : "Automatic update check is disabled in settings.";
+                } else {
+                    restingHeroSubtitle.innerHTML = (data[i].home && data[i].home.updateStatus && data[i].home.updateStatus.allReadyDesc) || (isPt ? "O Regata OS e todos os seus aplicativos instalados estão na versão estável mais recente." : "Regata OS and all your installed apps are up to date with the latest stable versions.");
+                }
+            }
+            if (btnRestingCheckText) {
+                const fs = require('fs');
+                const statusFile = "/tmp/regataos-update/status.txt";
+                let isNever = false;
+                if (fs.existsSync(statusFile)) {
+                    isNever = fs.readFileSync(statusFile, 'utf8').includes('never-updates');
+                }
+                if (isNever) {
+                    btnRestingCheckText.innerHTML = isPt ? "Verificar agora" : "Check now";
+                } else {
+                    btnRestingCheckText.innerHTML = (data[i].home && data[i].home.updateStatus && data[i].home.updateStatus.verify) || (isPt ? "Verificar se há atualizações" : "Check for updates");
+                }
+            }
+            if (restingBadgeText) {
+                const fs = require('fs');
+                const statusFile = "/tmp/regataos-update/status.txt";
+                let isNever = false;
+                if (fs.existsSync(statusFile)) {
+                    isNever = fs.readFileSync(statusFile, 'utf8').includes('never-updates');
+                }
+                if (isNever) {
+                    restingBadgeText.innerHTML = isPt ? "Verificação manual" : "Manual check";
+                } else {
+                    restingBadgeText.innerHTML = isPt ? "Sistema Atualizado" : "System Up to Date";
+                }
+            }
+            if (pillLabel) {
+                pillLabel.innerHTML = isPt ? "Última checagem:" : "Last check:";
             }
 
             // System updates status

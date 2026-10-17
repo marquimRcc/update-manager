@@ -79,16 +79,51 @@
 			</div>
 		</div>
 		<div id="main-install-update" style="display: none;"></div>
-		<div id="main-without-update" style="display: none;">
-			<div class="updated-system">
-				<div class="updated-system-img" style="background-image:url(../images/updated-system.png);"></div>
+		<!-- RESTING VIEW (Layout 2: Tela Única em Repouso - SEM SERVIDOR) -->
+		<div id="main-without-update" class="resting-hero-container" style="display: none;">
+			<!-- Top Bar -->
+			<div class="resting-top-bar">
+				<h1 class="resting-brand-title">Regata OS Update</h1>
+				<div class="resting-badge">
+					<span class="resting-badge-dot">●</span>
+					<span class="resting-badge-text">Sistema Atualizado</span>
+				</div>
 			</div>
-			<div class="check-updates-button-status">
-				<div id="check-updates-button-title">All ready</div>
-				<div id="check-updates-button-desc">All apps are up to date</div>
-			</div>
-			<div class="updated-system-check-button">
-				<div id="check-updates-button" onclick="checkUpdatesManually();">Check for updates</div>
+
+			<!-- Center Hero Section -->
+			<div class="resting-center-content">
+				<div class="resting-icon-wrapper">
+					<div class="resting-icon-glow">
+						<div class="resting-icon-circle">
+							<svg class="resting-icon-check" viewBox="0 0 24 24">
+								<path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+							</svg>
+						</div>
+					</div>
+				</div>
+
+				<h2 class="resting-hero-title" id="resting-hero-title">Tudo pronto por aqui!</h2>
+				<p class="resting-hero-subtitle" id="resting-hero-subtitle">
+					O Regata OS e todos os seus aplicativos instalados estão na versão estável mais recente.
+				</p>
+
+				<div class="resting-action-wrapper">
+					<button id="btn-resting-check-updates" class="btn-resting-check" onclick="checkUpdatesManually();">
+						<svg class="btn-resting-icon" viewBox="0 0 24 24">
+							<path fill="currentColor" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+						</svg>
+						<span id="btn-resting-check-text">Verificar se há atualizações</span>
+					</button>
+				</div>
+
+				<!-- Metadata Pill (SEM SERVIDOR - solicitado explicitamente pelo usuário) -->
+				<div class="resting-metadata-pill">
+					<svg class="pill-clock-icon" viewBox="0 0 24 24">
+						<path fill="currentColor" d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+					</svg>
+					<span class="pill-label">Última checagem:</span>
+					<span id="resting-last-check-time" class="pill-value">Hoje, às 10:30</span>
+				</div>
 			</div>
 		</div>
 		<div id="main-with-update" class="split-view-container" style="display: flex;">
@@ -227,19 +262,6 @@
 					</div>
 				</div>
 
-				<!-- Updated / No updates view -->
-				<div id="split-updated-view" class="split-updated-view" style="display: none;">
-					<div class="updated-system">
-						<div class="updated-system-img" style="background-image:url(../images/updated-system.png);"></div>
-					</div>
-					<div class="check-updates-button-status">
-						<div class="check-updates-button-title" id="split-check-updates-button-title">All ready</div>
-						<div class="check-updates-button-desc" id="split-check-updates-button-desc">All apps are up to date</div>
-					</div>
-					<div class="updated-system-check-button">
-						<div id="split-check-updates-btn" class="split-recheck-btn" onclick="checkUpdatesManually();">Check for updates</div>
-					</div>
-				</div>
 
 				<!-- Updates Cards List -->
 				<div class="split-right-cards" id="split-right-cards" style="display: none;">
