@@ -69,9 +69,9 @@
             },
             "autoUpdateOption": {
                 "title": "Atualizações automáticas",
-                "autoUpOn": "Atualizar o sistema automaticamente",
-                "checkUpOnly": "Apenas procurar por atualizações",
-                "neverUpdate": "Nunca procurar por atualizações"
+                "autoUpOn": "Atualizar automaticamente",
+                "checkUpOnly": "Apenas procurar atualizações",
+                "neverUpdate": "Nunca procurar"
             },
             "mirrorOption": {
                 "title": "Servidor de download (Espelho)",
