@@ -70,7 +70,7 @@
             "autoUpdateOption": {
                 "title": "Atualizações automáticas",
                 "autoUpOn": "Atualizar automaticamente",
-                "checkUpOnly": "Apenas procurar atualizações",
+                "checkUpOnly": "Apenas procurar",
                 "neverUpdate": "Nunca procurar"
             },
             "mirrorOption": {
