@@ -179,6 +179,16 @@ Do you really want to cancel updates and close the application?"
     fi
 }
 
+function confirm_close_desc() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Se você fechar agora, o processo será abortado e arquivos temporários serão limpos. Deseja realmente cancelar as atualizações e fechar o aplicativo?"
+    elif [[ $language == *"en-us"* ]]; then
+        echo "If you close now, the process will be aborted and temporary files will be cleaned. Do you really want to cancel updates and close the application?"
+    else
+        echo "If you close now, the process will be aborted and temporary files will be cleaned. Do you really want to cancel updates and close the application?"
+    fi
+}
+
 function confirm_close_btn_continue() {
     if [[ $language == *"pt"* ]]; then
         echo "Continuar atualizando"
@@ -191,11 +201,11 @@ function confirm_close_btn_continue() {
 
 function confirm_close_btn_quit() {
     if [[ $language == *"pt"* ]]; then
-        echo "Encerrar e fechar"
+        echo "Encerrar"
     elif [[ $language == *"en-us"* ]]; then
-        echo "Cancel and close"
+        echo "Quit"
     else
-        echo "Cancel and close"
+        echo "Quit"
     fi
 }
 
@@ -220,6 +230,8 @@ case $1 in
     "-confirm-close-text") confirm_close_text
       ;;
     "-confirm-close-info") confirm_close_info
+      ;;
+    "-confirm-close-desc") confirm_close_desc
       ;;
     "-confirm-close-btn-continue") confirm_close_btn_continue
       ;;
