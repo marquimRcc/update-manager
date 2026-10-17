@@ -89,18 +89,21 @@ function installAllApps() {
 }
 
 // Install updates from the system tray icon
-let timerTrayIcon = setInterval(installUpdatesTrayIcon, 1000);
+setInterval(installUpdatesTrayIcon, 500);
 function installUpdatesTrayIcon() {
 	const fs = require('fs');
 	const statusFile = "/tmp/regataos-update/status.txt";
 	const installUpdates = "/tmp/regataos-update/install-updates.txt";
 	if (fs.existsSync(installUpdates)) {
-		fs.unlinkSync(installUpdates);
-		const checkStatus = fs.readFileSync(statusFile, "utf8");
-		if ((!checkStatus.includes("installing-updates")) && (checkStatus.includes("show-updates"))) {
-			installAllApps();
+		try { fs.unlinkSync(installUpdates); } catch (e) { }
+		const checkStatus = fs.existsSync(statusFile) ? fs.readFileSync(statusFile, "utf8") : "";
+		if (!checkStatus.includes("installing-updates")) {
+			if (checkStatus.includes("show-updates")) {
+				installAllApps();
+			} else {
+				try { fs.writeFileSync("/tmp/regataos-update/all-auto-update.txt", "", "utf8"); } catch (e) { }
+			}
 		}
-		clearInterval(timerTrayIcon);
 	}
 }
 

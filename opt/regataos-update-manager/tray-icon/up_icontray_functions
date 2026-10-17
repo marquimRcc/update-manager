@@ -32,6 +32,37 @@ function install_updates() {
     echo "" > "/tmp/regataos-update/install-updates.txt"
 }
 
+# Normal close application
+function close_app() {
+    touch "/tmp/regataos-update/force-quit.txt"
+    sleep 0.2
+    ps -C "regataosupdate" >/dev/null && killall regataosupdate 2>/dev/null
+    killall alert-update.py check-update.py install-update.py 2>/dev/null
+}
+
+# Force close application and cancel all updates
+function force_close_app() {
+    touch "/tmp/regataos-update/force-quit.txt"
+    touch "/tmp/regataos-update/stop-all-update.txt"
+
+    # Cancel all running updates
+    sudo /opt/regataos-update-manager/scripts/regataos-up-cancel-all.sh 2>/dev/null
+    rm -f "/tmp/regataos-update/all-auto-update.txt"
+    rm -f "/tmp/regataos-update/install-updates.txt"
+
+    # Stop any background updater processes
+    killall -9 zypper 2>/dev/null
+    killall -9 aria2c 2>/dev/null
+    killall -9 wget 2>/dev/null
+    killall -9 regataos-up.sh 2>/dev/null
+    killall -9 regataos-up-all.sh 2>/dev/null
+    killall -9 regataos-check-up.sh 2>/dev/null
+
+    sleep 0.2
+    ps -C "regataosupdate" >/dev/null && killall regataosupdate 2>/dev/null
+    killall alert-update.py check-update.py install-update.py 2>/dev/null
+}
+
 # Run options.
 case $1 in
     "-show-up-app") show_up_window
@@ -39,6 +70,10 @@ case $1 in
     "-show-hide-up") show_hide_up_window
       ;;
     "-install-updates") install_updates
+      ;;
+    "-close-app") close_app
+      ;;
+    "-force-close-app") force_close_app
       ;;
    *) echo "Invalid option!"
       exit 1

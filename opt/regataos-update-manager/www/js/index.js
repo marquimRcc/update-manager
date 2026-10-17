@@ -132,11 +132,18 @@ win.on('close', function () {
     }
 });
 
-// Watch signals from system tray icon actions (restore/toggle)
+// Watch signals from system tray icon actions (restore/toggle/force-quit)
 setInterval(function () {
     const fs = require('fs');
     const showSignal = "/tmp/regataos-update/show-window.txt";
     const toggleSignal = "/tmp/regataos-update/toggle-window.txt";
+    const forceQuitSignal = "/tmp/regataos-update/force-quit.txt";
+
+    if (fs.existsSync(forceQuitSignal)) {
+        try { fs.unlinkSync(forceQuitSignal); } catch (e) { }
+        win.close(true);
+        return;
+    }
 
     if (fs.existsSync(showSignal)) {
         try { fs.unlinkSync(showSignal); } catch (e) { }

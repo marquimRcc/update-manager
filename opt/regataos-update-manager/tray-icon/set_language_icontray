@@ -129,6 +129,76 @@ function update_sys() {
     fi
 }
 
+function install_all() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Instalar tudo"
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Install all"
+    else
+        echo "Install all"
+    fi
+}
+
+function close_app() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Fechar"
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Close"
+    else
+        echo "Close"
+    fi
+}
+
+function confirm_close_title() {
+    echo "Regata OS Update"
+}
+
+function confirm_close_text() {
+    if [[ $language == *"pt"* ]]; then
+        echo "As atualizações ainda estão em andamento."
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Updates are still in progress."
+    else
+        echo "Updates are still in progress."
+    fi
+}
+
+function confirm_close_info() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Interromper a atualização agora não é recomendado e pode comprometer a instalação de pacotes no sistema.
+
+Deseja realmente cancelar as atualizações e fechar o aplicativo?"
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Interrupting updates now is not recommended and may compromise system package installation.
+
+Do you really want to cancel updates and close the application?"
+    else
+        echo "Interrupting updates now is not recommended and may compromise system package installation.
+
+Do you really want to cancel updates and close the application?"
+    fi
+}
+
+function confirm_close_btn_continue() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Continuar atualizando"
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Continue updating"
+    else
+        echo "Continue updating"
+    fi
+}
+
+function confirm_close_btn_quit() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Encerrar e fechar"
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Cancel and close"
+    else
+        echo "Cancel and close"
+    fi
+}
+
 # Run options
 case $1 in
     "-check-up-title") check_up_title
@@ -140,6 +210,20 @@ case $1 in
     "-open-up-mg") open_up_mg
       ;;
     "-update-sys") update_sys
+      ;;
+    "-install-all") install_all
+      ;;
+    "-close-app") close_app
+      ;;
+    "-confirm-close-title") confirm_close_title
+      ;;
+    "-confirm-close-text") confirm_close_text
+      ;;
+    "-confirm-close-info") confirm_close_info
+      ;;
+    "-confirm-close-btn-continue") confirm_close_btn_continue
+      ;;
+    "-confirm-close-btn-quit") confirm_close_btn_quit
       ;;
    *) echo "Invalid option!"
       exit 1
