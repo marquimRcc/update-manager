@@ -185,32 +185,61 @@ function updateSystemOrCancelUpdate() {
 		}
 	}
 
-	if ((fs.existsSync(allAutoUpdate)) || (fs.existsSync(upSpecificInProgress))) {
+	let isUpdating = false;
+	try {
+		if (fs.existsSync(status)) {
+			const st = fs.readFileSync(status, "utf8");
+			if (st.includes("installing-updates")) {
+				isUpdating = true;
+			}
+		}
+	} catch (e) { }
+
+	if (!isUpdating) {
+		const activeIndicators = [
+			allAutoUpdate,
+			upSpecificInProgress,
+			otherUpInProgress,
+			"/tmp/regataos-update/downloadable-application-other-updates.txt",
+			"/tmp/regataos-update/installing-application-other-updates.txt",
+			"/tmp/regataos-update/downloading-system-update.txt",
+			"/tmp/regataos-update/installing-system-update.txt"
+		];
+		for (const indicator of activeIndicators) {
+			if (fs.existsSync(indicator)) {
+				isUpdating = true;
+				break;
+			}
+		}
+	}
+
+	if (!isUpdating && fs.existsSync(upInProgress)) {
+		try {
+			const download = fs.existsSync(downloadableApp) ? fs.readFileSync(downloadableApp, "utf8") : "";
+			const queue = fs.existsSync(listAppsQueue) ? fs.readFileSync(listAppsQueue, "utf8") : "";
+			if (download.length >= 2 || queue.length >= 2) {
+				isUpdating = true;
+			}
+		} catch (e) { }
+	}
+
+	if (isUpdating) {
+		if (updateAll) updateAll.style.display = "block";
 		if (upAllButton) upAllButton.style.display = "none";
 		if (cancelUpButton) cancelUpButton.style.display = "block";
-	} else if (fs.existsSync(otherUpInProgress)) {
-		if (upAllButton) upAllButton.style.display = "none";
-		if (cancelUpButton) cancelUpButton.style.display = "none";
 		if (upAppButton) upAppButton.style.display = "none";
-	} else if (fs.existsSync(upInProgress)) {
-		const download = fs.readFileSync(downloadableApp, "utf8");
-		const queue = fs.readFileSync(listAppsQueue, "utf8");
-		if ((download.length >= 2) || (queue.length >= 2)) {
-			if (upAllButton) upAllButton.style.display = "none";
-			if (cancelUpButton) cancelUpButton.style.display = "block";
-		} else {
-			showInstallAllButton();
-		}
-	} else if (fs.existsSync(stopAllUp)) {
-		if (fs.existsSync(upInProgress)) {
-			if (upAllButton) upAllButton.style.display = "none";
-			if (cancelUpButton) cancelUpButton.style.display = "block";
-		} else {
-			showInstallAllButton();
-		}
 	} else {
-		const updated = fs.readFileSync(status, "utf8");
-		if (updated.includes("updated")) {
+		let isUpdated = false;
+		try {
+			if (fs.existsSync(status)) {
+				const updated = fs.readFileSync(status, "utf8");
+				if (updated.includes("updated")) {
+					isUpdated = true;
+				}
+			}
+		} catch (e) { }
+
+		if (isUpdated) {
 			if (upAllButton) upAllButton.style.display = "none";
 			if (cancelUpButton) cancelUpButton.style.display = "none";
 		} else {
