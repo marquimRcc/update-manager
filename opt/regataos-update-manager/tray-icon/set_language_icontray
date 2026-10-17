@@ -209,6 +209,36 @@ function confirm_close_btn_quit() {
     fi
 }
 
+function cancelling_title() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Cancelando atualizações..."
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Cancelling updates..."
+    else
+        echo "Cancelling updates..."
+    fi
+}
+
+function cancelling_text() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Finalizando processos com segurança..."
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Stopping processes safely..."
+    else
+        echo "Stopping processes safely..."
+    fi
+}
+
+function cancelling_desc() {
+    if [[ $language == *"pt"* ]]; then
+        echo "Aguarde um momento enquanto os arquivos temporários são limpos e os processos são encerrados."
+    elif [[ $language == *"en-us"* ]]; then
+        echo "Please wait a moment while temporary files are cleaned up and processes are terminated."
+    else
+        echo "Please wait a moment while temporary files are cleaned up and processes are terminated."
+    fi
+}
+
 # Run options
 case $1 in
     "-check-up-title") check_up_title
@@ -236,6 +266,12 @@ case $1 in
     "-confirm-close-btn-continue") confirm_close_btn_continue
       ;;
     "-confirm-close-btn-quit") confirm_close_btn_quit
+      ;;
+    "-cancelling-title") cancelling_title
+      ;;
+    "-cancelling-text") cancelling_text
+      ;;
+    "-cancelling-desc") cancelling_desc
       ;;
    *) echo "Invalid option!"
       exit 1

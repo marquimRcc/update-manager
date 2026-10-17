@@ -41,21 +41,21 @@ function force_close_app() {
     touch "/tmp/regataos-update/force-quit.txt"
     touch "/tmp/regataos-update/stop-all-update.txt"
 
-    # Cancel all running updates
+    # Close GUI window first
+    killall -TERM regataosupdate 2>/dev/null
+
+    # Cancel all running updates gracefully and clean up
     sudo /opt/regataos-update-manager/scripts/regataos-up-cancel-all.sh 2>/dev/null
     rm -f "/tmp/regataos-update/all-auto-update.txt"
     rm -f "/tmp/regataos-update/install-updates.txt"
 
     # Stop any background updater processes
-    killall -9 zypper 2>/dev/null
-    killall -9 aria2c 2>/dev/null
-    killall -9 wget 2>/dev/null
-    killall -9 regataos-up.sh 2>/dev/null
-    killall -9 regataos-up-all.sh 2>/dev/null
-    killall -9 regataos-check-up.sh 2>/dev/null
-
-    sleep 0.2
-    ps -C "regataosupdate" >/dev/null && killall regataosupdate 2>/dev/null
+    pkill -TERM -f "regataos-up" 2>/dev/null
+    pkill -TERM -f "zypper" 2>/dev/null
+    sleep 0.4
+    pkill -9 -f "regataos-up" 2>/dev/null
+    pkill -9 -f "zypper" 2>/dev/null
+    killall -9 aria2c wget regataosupdate 2>/dev/null
     killall alert-update.py check-update.py install-update.py 2>/dev/null
 }
 

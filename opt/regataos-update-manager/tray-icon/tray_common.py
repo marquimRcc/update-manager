@@ -3,10 +3,11 @@
 
 import os
 import sys
-from PyQt6.QtCore import Qt, QRectF
+import time
+from PyQt6.QtCore import Qt, QRectF, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPainter, QColor, QPen
 from PyQt6.QtWidgets import (QMenu, QDialog, QWidget, QVBoxLayout, 
-                             QHBoxLayout, QLabel, QPushButton, QApplication)
+                             QHBoxLayout, QLabel, QPushButton, QProgressBar, QApplication)
 
 base_font = "Oxygen, Cantarell, Noto Sans, Ubuntu, sans-serif"
 
@@ -27,100 +28,135 @@ def is_dark_theme():
         pass
     return False
 
-def draw_style3_icon(dark=True):
+def draw_style3_icon(dark=True, state="confirm"):
     pix = QPixmap(48, 48)
     pix.fill(Qt.GlobalColor.transparent)
     p = QPainter(pix)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-    circle_bg = QColor(0, 95, 184, 45) if dark else QColor(0, 95, 184, 25)
-    pen_color = QColor(0, 150, 255, 230) if dark else QColor(0, 95, 184, 230)
+    if state == "cancelling":
+        circle_bg = QColor(255, 170, 0, 35) if dark else QColor(230, 140, 0, 25)
+        pen_color = QColor(255, 180, 50, 230) if dark else QColor(215, 120, 0, 230)
+    else:
+        circle_bg = QColor(0, 95, 184, 45) if dark else QColor(0, 95, 184, 25)
+        pen_color = QColor(0, 150, 255, 230) if dark else QColor(0, 95, 184, 230)
 
     p.setBrush(circle_bg)
     p.setPen(QPen(pen_color, 2))
     p.drawEllipse(QRectF(4, 4, 40, 40))
 
     p.setPen(QPen(pen_color, 2.5))
-    p.drawLine(24, 13, 24, 25)
-    p.drawLine(18, 20, 24, 25)
-    p.drawLine(30, 20, 24, 25)
-    p.drawLine(15, 31, 33, 31)
+    if state == "cancelling":
+        p.drawLine(18, 18, 30, 30)
+        p.drawLine(30, 18, 18, 30)
+    else:
+        p.drawLine(24, 13, 24, 25)
+        p.drawLine(18, 20, 24, 25)
+        p.drawLine(30, 20, 24, 25)
+        p.drawLine(15, 31, 33, 31)
 
     p.end()
     return pix
+
+class CancelWorker(QThread):
+    finished_cancelling = pyqtSignal()
+
+    def run(self):
+        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "up_icontray_functions")
+        os.system(f'/bin/bash "{script_path}" -force-close-app')
+        self.finished_cancelling.emit()
 
 class ConfirmCloseDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.confirmed_quit = False
-        dark = is_dark_theme()
+        self.dark = is_dark_theme()
 
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        bg = "#181a1f" if dark else "#ffffff"
-        fg = "#e6edf3" if dark else "#1f2328"
-        fg_muted = "#8b949e" if dark else "#57606a"
-        border = "#30363d" if dark else "#d0d7de"
+        self.bg = "#181a1f" if self.dark else "#ffffff"
+        self.fg = "#e6edf3" if self.dark else "#1f2328"
+        self.fg_muted = "#8b949e" if self.dark else "#57606a"
+        self.border = "#30363d" if self.dark else "#d0d7de"
 
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(10, 10, 10, 10)
 
-        card = QWidget(self)
-        card.setObjectName("card3")
-        card.setFixedSize(460, 215)
-        card.setStyleSheet(f"""
+        self.card = QWidget(self)
+        self.card.setObjectName("card3")
+        self.card.setFixedSize(460, 215)
+        self.card.setStyleSheet(f"""
             #card3 {{
-                background-color: {bg};
-                border: 1px solid {border};
+                background-color: {self.bg};
+                border: 1px solid {self.border};
                 border-radius: 14px;
                 font-family: {base_font};
             }}
         """)
 
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(22, 20, 22, 18)
-        layout.setSpacing(12)
+        self.layout = QVBoxLayout(self.card)
+        self.layout.setContentsMargins(22, 20, 22, 18)
+        self.layout.setSpacing(12)
 
         # Header
-        header = QHBoxLayout()
-        header.setSpacing(12)
+        self.header = QHBoxLayout()
+        self.header.setSpacing(12)
 
-        icon_label = QLabel()
-        icon_label.setPixmap(draw_style3_icon(dark))
-        icon_label.setStyleSheet("border: none; background: transparent;")
-        header.addWidget(icon_label)
+        self.icon_label = QLabel()
+        self.icon_label.setPixmap(draw_style3_icon(self.dark, "confirm"))
+        self.icon_label.setStyleSheet("border: none; background: transparent;")
+        self.header.addWidget(self.icon_label)
 
-        h_text = QVBoxLayout()
-        h_text.setSpacing(2)
+        self.h_text = QVBoxLayout()
+        self.h_text.setSpacing(2)
         title_text = get_text("-confirm-close-title", "Regata OS Update")
-        t = QLabel(title_text)
-        t.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {fg}; border: none; background: transparent;")
+        self.t = QLabel(title_text)
+        self.t.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {self.fg}; border: none; background: transparent;")
         sub_text = get_text("-confirm-close-text", "As atualizações continuam em execução.")
-        m = QLabel(sub_text)
-        m.setStyleSheet(f"font-size: 12px; color: {'#58a6ff' if dark else '#005fb8'}; font-weight: 600; border: none; background: transparent;")
-        h_text.addWidget(t)
-        h_text.addWidget(m)
-        header.addLayout(h_text)
-        header.addStretch()
-        layout.addLayout(header)
+        self.m = QLabel(sub_text)
+        self.m.setStyleSheet(f"font-size: 12px; color: {'#58a6ff' if self.dark else '#005fb8'}; font-weight: 600; border: none; background: transparent;")
+        self.h_text.addWidget(self.t)
+        self.h_text.addWidget(self.m)
+        self.header.addLayout(self.h_text)
+        self.header.addStretch()
+        self.layout.addLayout(self.header)
 
         # Description
         desc_text = get_text("-confirm-close-desc", "Se você fechar agora, o processo será abortado e arquivos temporários serão limpos. Deseja realmente cancelar as atualizações e fechar?")
-        desc = QLabel(desc_text)
-        desc.setStyleSheet(f"font-size: 13px; color: {fg_muted}; line-height: 1.35; border: none; background: transparent;")
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
+        self.desc = QLabel(desc_text)
+        self.desc.setStyleSheet(f"font-size: 13px; color: {self.fg_muted}; line-height: 1.35; border: none; background: transparent;")
+        self.desc.setWordWrap(True)
+        self.layout.addWidget(self.desc)
 
-        layout.addStretch()
+        # Progress bar (para o estado de cancelando)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setFixedHeight(4)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                background-color: {'#2a2e33' if self.dark else '#e1e4e8'};
+                border: none;
+                border-radius: 2px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {'#ffaa00' if self.dark else '#d97706'};
+                border-radius: 2px;
+            }}
+        """)
+        self.progress_bar.hide()
+        self.layout.addWidget(self.progress_bar)
+
+        self.layout.addStretch()
 
         # Buttons
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(12)
+        self.btn_layout = QHBoxLayout()
+        self.btn_layout.setSpacing(12)
 
         btn_quit_label = get_text("-confirm-close-btn-quit", "Encerrar")
-        btn_quit = QPushButton(btn_quit_label)
-        btn_quit.setStyleSheet(f"""
+        self.btn_quit = QPushButton(btn_quit_label)
+        self.btn_quit.setStyleSheet(f"""
             color: #ff6b6b;
             background-color: transparent;
             border: none;
@@ -129,11 +165,11 @@ class ConfirmCloseDialog(QDialog):
             font-weight: 600;
             font-family: {base_font};
         """)
-        btn_quit.clicked.connect(self.on_quit_clicked)
+        self.btn_quit.clicked.connect(self.on_quit_clicked)
 
         btn_continue_label = get_text("-confirm-close-btn-continue", "Continuar atualizando")
-        btn_continue = QPushButton(btn_continue_label)
-        btn_continue.setStyleSheet(f"""
+        self.btn_continue = QPushButton(btn_continue_label)
+        self.btn_continue.setStyleSheet(f"""
             color: #ffffff;
             background-color: #005fb8;
             border: 1px solid #005fb8;
@@ -143,16 +179,38 @@ class ConfirmCloseDialog(QDialog):
             font-weight: 700;
             font-family: {base_font};
         """)
-        btn_continue.clicked.connect(self.reject)
+        self.btn_continue.clicked.connect(self.reject)
 
-        btn_layout.addStretch()
-        btn_layout.addWidget(btn_quit)
-        btn_layout.addWidget(btn_continue)
-        layout.addLayout(btn_layout)
+        self.btn_layout.addStretch()
+        self.btn_layout.addWidget(self.btn_quit)
+        self.btn_layout.addWidget(self.btn_continue)
+        self.layout.addLayout(self.btn_layout)
 
-        outer_layout.addWidget(card)
+        outer_layout.addWidget(self.card)
 
     def on_quit_clicked(self):
+        # 1. Muda os textos e layout da janela para o estado Cancelando...
+        cancel_title = get_text("-cancelling-title", "Cancelando atualizações...")
+        cancel_sub = get_text("-cancelling-text", "Finalizando processos com segurança...")
+        cancel_desc = get_text("-cancelling-desc", "Aguarde um momento enquanto os arquivos temporários são limpos e os processos são encerrados.")
+
+        self.icon_label.setPixmap(draw_style3_icon(self.dark, "cancelling"))
+        self.t.setText(cancel_title)
+        self.m.setText(cancel_sub)
+        self.m.setStyleSheet(f"font-size: 12px; color: {'#ffaa00' if self.dark else '#d97706'}; font-weight: 600; border: none; background: transparent;")
+        self.desc.setText(cancel_desc)
+
+        # 2. Oculta os botões e exibe a barra de progresso suave
+        self.btn_quit.hide()
+        self.btn_continue.hide()
+        self.progress_bar.show()
+
+        # 3. Dispara a thread de encerramento em segundo plano
+        self.worker = CancelWorker()
+        self.worker.finished_cancelling.connect(self.on_cancelling_finished)
+        self.worker.start()
+
+    def on_cancelling_finished(self):
         self.confirmed_quit = True
         self.accept()
 
@@ -221,8 +279,6 @@ def close_app():
         dialog.exec()
 
         if dialog.confirmed_quit:
-            script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "up_icontray_functions")
-            os.system(f'/bin/bash "{script_path}" -force-close-app')
             QApplication.quit()
             sys.exit(0)
     else:
