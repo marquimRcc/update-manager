@@ -155,8 +155,8 @@ download_package_parallel() {
         aria2c --follow-metalink=mem --metalink-preferred-protocol=https \
             -x 16 -s 16 -j 16 -k 1M --file-allocation=none --check-certificate=false \
             --allow-overwrite=true --auto-file-renaming=false \
-            -d "/tmp/regataos-update" -o "$file_name" "$url" 2>&1 | \
-            (pv -n > "$log_file" 2>/dev/null || cat > "$log_file")
+            --summary-interval=1 \
+            -d "/tmp/regataos-update" -o "$file_name" "$url" > "$log_file" 2>&1
     fi
 
     # Validação rigorosa: se falhou, está vazio ou é XML/metalink em vez de RPM, fallback para wget
@@ -173,8 +173,7 @@ download_package_parallel() {
 
     if [ "$is_valid" -ne 1 ]; then
         rm -f "$target"
-        wget --no-check-certificate -O "$target" "$url" 2>&1 | \
-            (pv -n > "$log_file" 2>/dev/null || cat > "$log_file")
+        wget --no-check-certificate --progress=dot:mega -O "$target" "$url" > "$log_file" 2>&1
     fi
 
     if [ -s "$target" ]; then

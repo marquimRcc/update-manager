@@ -262,64 +262,210 @@ function currentStatus() {
 }
 currentStatus();
 
+// Helper to hide and clean app download status
+function hideAppDownloadStatus(appName) {
+    const statusEl = document.querySelector(`div#download-status-${appName}`);
+    if (statusEl) statusEl.style.display = "none";
+    const downEl = document.querySelector(`div#downloaded-${appName}`);
+    if (downEl) downEl.innerHTML = "";
+    const totEl = document.querySelector(`div#total-download-${appName}`);
+    if (totEl) totEl.innerHTML = "";
+    const pctEl = document.querySelector(`div#percentage-${appName}`);
+    if (pctEl) pctEl.innerHTML = "";
+}
+
 // Capture percentage of app download
 setInterval(downloadPercentage, 1000);
 function downloadPercentage() {
     const fs = require('fs');
-    const exec = require('child_process').exec;
 
     const downloadableApp = "/tmp/regataos-update/downloadable-application.txt";
     if (!fs.existsSync(downloadableApp)) {
+        document.querySelectorAll(".download-status-app").forEach(div => {
+            const id = div.id || "";
+            const appName = id.replace("download-status-", "");
+            if (appName) hideAppDownloadStatus(appName);
+        });
         return;
     }
 
-    let files = [];
+    let downloadingApps = [];
+    try {
+        downloadingApps = fs.readFileSync(downloadableApp, "utf8").trim().split('\n').map(s => s.trim()).filter(Boolean);
+    } catch (e) {
+        return;
+    }
 
-    // Read the app store's JSON files
-    fs.readdirSync("/opt/regataos-store/apps-list").forEach(files => {
-        fs.readFile("/opt/regataos-store/apps-list/" + files, "utf8", function (err, data) {
-            if (!err) {
-                let apps = JSON.parse(data);
-                for (let i = 0; i < apps.length; i++) {
-                    let appName = apps[i].nickname;
-                    let downloadingApp = fs.readFileSync(downloadableApp, "utf8");
+    // Hide status for any app that is no longer in downloadable-application.txt
+    document.querySelectorAll(".download-status-app").forEach(div => {
+        const id = div.id || "";
+        const appName = id.replace("download-status-", "");
+        if (appName && !downloadingApps.includes(appName)) {
+            hideAppDownloadStatus(appName);
+        }
+    });
 
-                    if (downloadingApp.includes(appName)) {
-                        document.querySelector(`div#download-status-${appName}`).style.display = "block";
+    if (downloadingApps.length === 0) {
+        return;
+    }
 
-                        let downloadPercentageApp1 = `tail -2 /tmp/regataos-update/${appName}-download-percentage.log | awk '{print $7}' | head -1 | tail -1`;
-                        exec(downloadPercentageApp1, (error, stdout, stderr) => {
-                            if (stdout) {
-                                if (!stdout.includes("100%")) {
-                                    let percentage = '(' + stdout.replace(/\s/g, "") + ')'
-                                    document.querySelector(`div#percentage-${appName}`).innerHTML = percentage;
-                                }
-                            }
-                        });
+    // Process downloading apps
+    downloadingApps.forEach(appName => {
+        const logFile = `/tmp/regataos-update/${appName}-download-percentage.log`;
+        if (!fs.existsSync(logFile)) {
+            hideAppDownloadStatus(appName);
+            return;
+        }
 
-                        let downloadPercentageApp2 = `tail -2 /tmp/regataos-update/${appName}-download-percentage.log | awk '{print $1}' | head -1 | tail -1 | awk '{$1=$1/1024; print $1}' | cut -d'.' -f -1`;
-                        exec(downloadPercentageApp2, (error, stdout, stderr) => {
-                            if (stdout) {
-                                let percentage = stdout.replace(/\s/g, "") + 'MB'
-                                document.querySelector(`div#downloaded-${appName}`).innerHTML = percentage;
-                            }
-                        });
+        let rawLog = '';
+        try {
+            rawLog = fs.readFileSync(logFile, "utf8").trim();
+        } catch (e) {
+            hideAppDownloadStatus(appName);
+            return;
+        }
 
-                        let downloadPercentageApp3 = `grep -r application /tmp/regataos-update/${appName}-download-percentage.log | head -1 | tail -1 | cut -d':' -f 2- | cut -d'(' -f 2- | cut -d')' -f -1 | sed 's/M/ MB/' | sed 's/K/ KB/' | sed 's/G/ GB/'`;
-                        exec(downloadPercentageApp3, (error, stdout, stderr) => {
-                            if (stdout) {
-                                let percentage = '/' + stdout.replace(/\s/g, "")
-                                document.querySelector(`div#total-download-${appName}`).innerHTML = percentage;
-                            }
-                        });
+        if (!rawLog) {
+            hideAppDownloadStatus(appName);
+            return;
+        }
 
-                    } else {
-                        document.querySelector(`div#download-status-${appName}`).style.display = "none";
+        const lines = rawLog.split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length === 0) {
+            hideAppDownloadStatus(appName);
+            return;
+        }
+
+        let downloadedMB = '';
+        let totalStr = '';
+        let percentageStr = '';
+
+        // Check if log indicates completion (100)
+        const lastLine = lines[lines.length - 1];
+        if (lastLine === "100" || lastLine.includes("100%")) {
+            hideAppDownloadStatus(appName);
+            return;
+        }
+
+        // 1. Format: aria2c (e.g. "[#3683ee 24MiB/85MiB(28%) CN:16 DL:12MiB]")
+        const ariaMatch = rawLog.match(/([0-9.]+)\s*([KMGT]?i?B)\s*\/\s*([0-9.]+)\s*([KMGT]?i?B)\s*\(\s*(\d+)%\s*\)/i);
+        if (ariaMatch) {
+            let downNum = parseFloat(ariaMatch[1]);
+            let downUnit = ariaMatch[2].toUpperCase();
+            if (downUnit.startsWith("K") && downNum >= 1024) {
+                downNum = Math.floor(downNum / 1024);
+                downUnit = "MB";
+            } else if (downUnit.startsWith("M")) {
+                downNum = Math.round(downNum);
+                downUnit = "MB";
+            } else if (downUnit.startsWith("G")) {
+                downNum = parseFloat(downNum.toFixed(1));
+                downUnit = "GB";
+            }
+            if (downNum > 0) {
+                downloadedMB = `${downNum}${downUnit.replace('I', '')}`;
+            }
+
+            let totNum = parseFloat(ariaMatch[3]);
+            let totUnit = ariaMatch[4].toUpperCase().replace('I', '');
+            if (totUnit.startsWith("M")) totNum = Math.round(totNum);
+            else if (totUnit.startsWith("G")) totNum = parseFloat(totNum.toFixed(1));
+            totalStr = `/${totNum}${totUnit}`;
+
+            const pctVal = parseInt(ariaMatch[5], 10);
+            if (pctVal > 0 && pctVal < 100) {
+                percentageStr = `(${pctVal}%)`;
+            }
+        }
+
+        // 2. Format: wget (e.g. " 51200K .......... .......... 60% 3.4M 12s")
+        if (!downloadedMB && !percentageStr) {
+            for (let i = lines.length - 1; i >= Math.max(0, lines.length - 5); i--) {
+                const wMatch = lines[i].match(/^\s*([0-9.]+)\s*([KMGT]?)\s+.*?\s+(\d+)%/);
+                if (wMatch) {
+                    let wDown = parseFloat(wMatch[1]);
+                    const unit = (wMatch[2] || 'K').toUpperCase();
+                    if (unit === 'K' && wDown >= 1024) {
+                        downloadedMB = `${Math.floor(wDown / 1024)}MB`;
+                    } else if (unit === 'M' && wDown > 0) {
+                        downloadedMB = `${Math.round(wDown)}MB`;
+                    }
+                    const pctVal = parseInt(wMatch[3], 10);
+                    if (pctVal > 0 && pctVal < 100) {
+                        percentageStr = `(${pctVal}%)`;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // 3. Format: pv -n (integer percentage per line)
+        if (!percentageStr) {
+            if (/^\d{1,3}$/.test(lastLine)) {
+                const pctVal = parseInt(lastLine, 10);
+                if (pctVal > 0 && pctVal < 100) {
+                    percentageStr = `(${pctVal}%)`;
+                }
+            }
+        }
+
+        // 4. Format: classic Regata OS column output
+        if (!percentageStr || !downloadedMB) {
+            for (let i = lines.length - 1; i >= Math.max(0, lines.length - 3); i--) {
+                const cols = lines[i].split(/\s+/).filter(Boolean);
+                if (cols.length >= 7) {
+                    if (!percentageStr) {
+                        const pctM = cols[6].match(/(\d+)%/);
+                        if (pctM) {
+                            const val = parseInt(pctM[1], 10);
+                            if (val > 0 && val < 100) percentageStr = `(${val}%)`;
+                        }
+                    }
+                    if (!downloadedMB) {
+                        const num = parseFloat(cols[0]);
+                        if (!isNaN(num) && num > 1024) {
+                            const mb = Math.floor(num / 1024);
+                            if (mb > 0) downloadedMB = `${mb}MB`;
+                        }
                     }
                 }
-                return;
             }
-        });
+        }
+
+        // 5. Total size from "application" line if available
+        if (!totalStr) {
+            const appLine = lines.find(l => l.includes("application"));
+            if (appLine) {
+                const totM = appLine.match(/\(([\d.]+\s*[KMGT]?B?)\)/i) || appLine.match(/:\s*([\d.]+\s*[KMGT]?B?)/i);
+                if (totM) {
+                    let tStr = totM[1].replace(/\s+/g, "").toUpperCase();
+                    if (/^\d+[MKG]$/.test(tStr)) tStr += "B";
+                    totalStr = `/${tStr}`;
+                }
+            }
+        }
+
+        // STRICT VALIDATION: Never show "0MB" or empty "()"
+        if (downloadedMB === "0MB" || downloadedMB === "0") downloadedMB = "";
+        if (percentageStr === "()" || percentageStr === "(0%)" || percentageStr === "(100%)") percentageStr = "";
+
+        // Only display if there is REAL numerical progress (> 0 MB or > 0%)
+        const hasRealProgress = Boolean(downloadedMB) || Boolean(percentageStr);
+
+        if (!hasRealProgress) {
+            hideAppDownloadStatus(appName);
+        } else {
+            const statusDiv = document.querySelector(`div#download-status-${appName}`);
+            if (statusDiv) {
+                statusDiv.style.display = "block";
+                const dEl = document.querySelector(`div#downloaded-${appName}`);
+                if (dEl) dEl.innerHTML = downloadedMB || "";
+                const tEl = document.querySelector(`div#total-download-${appName}`);
+                if (tEl) tEl.innerHTML = totalStr || "";
+                const pEl = document.querySelector(`div#percentage-${appName}`);
+                if (pEl) pEl.innerHTML = percentageStr || "";
+            }
+        }
     });
 }
 downloadPercentage();

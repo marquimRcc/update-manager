@@ -97,8 +97,8 @@ function update_all_apps() {
         aria2c --follow-metalink=mem --metalink-preferred-protocol=https \
             -x 16 -s 16 -j 16 -k 1M --file-allocation=none --check-certificate=false \
             --allow-overwrite=true --auto-file-renaming=false \
-            -d "/tmp/regataos-update" -o "$app_download_file_name" "$app_download_link" 2>&1 | \
-            (pv -n > "/tmp/regataos-update/$app_nickname-download-percentage.log" 2>/dev/null || cat > "/tmp/regataos-update/$app_nickname-download-percentage.log")
+            --summary-interval=1 \
+            -d "/tmp/regataos-update" -o "$app_download_file_name" "$app_download_link" > "/tmp/regataos-update/$app_nickname-download-percentage.log" 2>&1
     fi
 
     # Validação rigorosa: se falhou, está vazio ou é XML/metalink em vez de RPM, fallback para wget
@@ -116,8 +116,7 @@ function update_all_apps() {
 
     if [ "$is_valid" -ne 1 ]; then
         rm -f "$target_file"
-        wget --no-check-certificate -O "$target_file" "$app_download_link" 2>&1 | \
-            (pv -n > "/tmp/regataos-update/$app_nickname-download-percentage.log" 2>/dev/null || cat > "/tmp/regataos-update/$app_nickname-download-percentage.log")
+        wget --no-check-certificate --progress=dot:mega -O "$target_file" "$app_download_link" > "/tmp/regataos-update/$app_nickname-download-percentage.log" 2>&1
     fi
 
     # Install package

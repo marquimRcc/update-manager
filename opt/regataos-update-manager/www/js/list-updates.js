@@ -125,6 +125,11 @@ function listUpdatedQueue() {
 		els.cancelApp.style.display   = "none";
 		els.concluded.style.display   = "none";
 
+		const downStatusEl = document.querySelector(`div#download-status-${nickname}`);
+		if (downStatusEl && newState !== "downloading") {
+			downStatusEl.style.display = "none";
+		}
+
 		if (newState === "pending") {
 			els.pending.style.display = "block";
 			setTimeout(() => { els.cancelApp.style.display = "block"; }, 500);
