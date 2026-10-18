@@ -13,6 +13,51 @@ function runShellProcess(commandLine) {
 	runCommandLine.unref();
 }
 
+// In-memory cache for Regata OS Store catalog to prevent continuous heavy disk I/O
+let _storeAppsCache = null;
+let _storeAppsCacheTime = 0;
+
+function getStoreAppsCatalog() {
+	const now = Date.now();
+	if (_storeAppsCache && (now - _storeAppsCacheTime < 60000)) {
+		return _storeAppsCache;
+	}
+
+	const fs = require('fs');
+	const storeDir = "/opt/regataos-store/apps-list";
+	const catalog = [];
+
+	if (!fs.existsSync(storeDir)) {
+		_storeAppsCache = catalog;
+		_storeAppsCacheTime = now;
+		return catalog;
+	}
+
+	try {
+		const storeFiles = fs.readdirSync(storeDir);
+		for (const file of storeFiles) {
+			try {
+				const data = fs.readFileSync(storeDir + "/" + file, "utf8");
+				const apps = JSON.parse(data);
+				for (let i = 0; i < apps.length; i++) {
+					catalog.push(apps[i]);
+				}
+			} catch (err) { }
+		}
+		_storeAppsCache = catalog;
+		_storeAppsCacheTime = now;
+	} catch (e) {
+		if (!_storeAppsCache) _storeAppsCache = [];
+	}
+
+	return _storeAppsCache;
+}
+
+// Export for other scripts in the window context
+if (typeof window !== "undefined") {
+	window.getStoreAppsCatalog = getStoreAppsCatalog;
+}
+
 // This function lists the updates available automatically
 function installAllApps() {
 	if (typeof resetGlobalProgress === 'function') {
@@ -37,22 +82,16 @@ function installAllApps() {
 	const listAppsUpdate = fs.existsSync(appsList) ? fs.readFileSync(appsList, "utf8") : "";
 	const updated = fs.existsSync(updatedApps) ? fs.readFileSync(updatedApps, "utf8") : "";
 
-	// Read the app store's JSON files synchronously
-	const storeFiles = fs.readdirSync("/opt/regataos-store/apps-list");
-	for (const file of storeFiles) {
-		try {
-			const data = fs.readFileSync("/opt/regataos-store/apps-list/" + file, "utf8");
-			const apps = JSON.parse(data);
-			for (let i = 0; i < apps.length; i++) {
-				const packageName = apps[i].package;
-				const packageNickname = apps[i].nickname;
-				if (listAppsUpdate.includes(packageName)) {
-					if (!installing.includes(packageNickname) && !queueItems.includes(packageNickname)) {
-						queueItems.push(packageNickname);
-					}
-				}
+	// Read app store catalog from in-memory cache
+	const apps = getStoreAppsCatalog();
+	for (let i = 0; i < apps.length; i++) {
+		const packageName = apps[i].package;
+		const packageNickname = apps[i].nickname;
+		if (listAppsUpdate.includes(packageName)) {
+			if (!installing.includes(packageNickname) && !queueItems.includes(packageNickname)) {
+				queueItems.push(packageNickname);
 			}
-		} catch (e) { }
+		}
 	}
 
 	if (fs.existsSync(packageList)) {

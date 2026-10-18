@@ -134,36 +134,44 @@ download_package_parallel() {
     local file_name="$2"
     local url="$3"
     local target="/tmp/regataos-update/$file_name"
+    local part="/tmp/regataos-update/$file_name.part"
     local log_file="/tmp/regataos-update/$nick-download-percentage.log"
+    local done_file="/tmp/regataos-update/download-complete-$nick.done"
+    local fail_file="/tmp/regataos-update/download-failed-$nick.txt"
 
-    # Verifica se o arquivo já existe e é válido
+    rm -f "$done_file" "$fail_file"
+
+    # Verifica se o arquivo final já existe e é válido
     if [ -s "$target" ]; then
         if [[ "$file_name" == *.rpm ]]; then
             if python3 -c "import sys; sys.exit(0 if open('$target', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
                 echo "100" > "$log_file"
+                touch "$done_file"
                 return 0
             fi
         else
             echo "100" > "$log_file"
+            touch "$done_file"
             return 0
         fi
     fi
 
     echo "downloading $nick" > "/tmp/regataos-update/get-pid-$nick.txt"
+    rm -f "$part"
 
     if command -v aria2c >/dev/null 2>&1; then
         aria2c --follow-metalink=mem --metalink-preferred-protocol=https \
             -x 16 -s 16 -j 16 -k 1M --file-allocation=none --check-certificate=false \
             --allow-overwrite=true --auto-file-renaming=false \
             --summary-interval=1 \
-            -d "/tmp/regataos-update" -o "$file_name" "$url" > "$log_file" 2>&1
+            -d "/tmp/regataos-update" -o "$file_name.part" "$url" > "$log_file" 2>&1
     fi
 
-    # Validação rigorosa: se falhou, está vazio ou é XML/metalink em vez de RPM, fallback para wget
+    # Validação rigorosa do arquivo temporário (.part): se falhou, está vazio ou corrompido, fallback para wget
     local is_valid=0
-    if [ -s "$target" ]; then
+    if [ -s "$part" ]; then
         if [[ "$file_name" == *.rpm ]]; then
-            if python3 -c "import sys; sys.exit(0 if open('$target', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
+            if python3 -c "import sys; sys.exit(0 if open('$part', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
                 is_valid=1
             fi
         else
@@ -172,17 +180,35 @@ download_package_parallel() {
     fi
 
     if [ "$is_valid" -ne 1 ]; then
-        rm -f "$target"
-        wget --no-check-certificate --progress=dot:mega -O "$target" "$url" > "$log_file" 2>&1
+        rm -f "$part"
+        wget --no-check-certificate --progress=dot:mega -O "$part" "$url" > "$log_file" 2>&1
+        if [ -s "$part" ]; then
+            if [[ "$file_name" == *.rpm ]]; then
+                if python3 -c "import sys; sys.exit(0 if open('$part', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
+                    is_valid=1
+                fi
+            else
+                is_valid=1
+            fi
+        fi
     fi
 
-    if [ -s "$target" ]; then
+    # Move atomicamente de .part para o arquivo final apenas se validado com sucesso
+    if [ "$is_valid" -eq 1 ]; then
+        mv -f "$part" "$target"
         echo "100" > "$log_file"
+        touch "$done_file"
+    else
+        rm -f "$part"
+        touch "$fail_file"
+        echo "Falha no download ou integridade do pacote $file_name" >> "/var/log/regataos-logs/regataos-update-$nick.log"
     fi
+
     rm -f "/tmp/regataos-update/get-pid-$nick.txt"
 }
 
 # 2. Inicia downloads em segundo plano para todos os apps pendentes ao mesmo tempo
+declare -A DOWNLOAD_PIDS
 for ((idx=0; idx<${#QUEUED_NICKNAMES[@]}; idx++)); do
     nick="${QUEUED_NICKNAMES[$idx]}"
     file="${QUEUED_FILENAMES[$idx]}"
@@ -195,8 +221,10 @@ for ((idx=0; idx<${#QUEUED_NICKNAMES[@]}; idx++)); do
     echo "$nick" >> "/tmp/regataos-update/downloadable-application.txt"
     sed -i '/^$/d' "/tmp/regataos-update/downloadable-application.txt"
 
-    # Dispara download em segundo plano com aria2c (16 conexões)
+    # Dispara download em segundo plano com aria2c e registra PID
     download_package_parallel "$nick" "$file" "$url" &
+    DOWNLOAD_PIDS["$nick"]=$!
+    echo "${DOWNLOAD_PIDS[$nick]}" > "/tmp/regataos-update/dl-pid-$nick.txt"
 done
 
 # 3. Pipeline de Instalação: enquanto um instala no Zypper/RPM, os próximos continuam baixando em paralelo!
@@ -208,8 +236,8 @@ for ((idx=0; idx<${#QUEUED_NICKNAMES[@]}; idx++)); do
 
     if [ -f "/tmp/regataos-update/stop-all-update.txt" ]; then
         rm -f "/tmp/regataos-update/stop-all-update.txt"
-        killall aria2c 2>/dev/null
-        killall wget 2>/dev/null
+        pkill -f "aria2c.*regataos-update" 2>/dev/null
+        pkill -f "wget.*regataos-update" 2>/dev/null
         exit 0
     fi
 
@@ -220,18 +248,48 @@ for ((idx=0; idx<${#QUEUED_NICKNAMES[@]}; idx++)); do
         continue
     fi
 
-    # Aguarda o download deste aplicativo terminar (enquanto os outros continuam baixando em paralelo)
+    # Aguarda o download deste aplicativo terminar de forma confiável (PID ou marcador de conclusão)
+    dl_pid="${DOWNLOAD_PIDS[$nick]:-}"
+    if [ -z "$dl_pid" ] && [ -f "/tmp/regataos-update/dl-pid-$nick.txt" ]; then
+        dl_pid=$(cat "/tmp/regataos-update/dl-pid-$nick.txt" 2>/dev/null)
+    fi
+
     wait_time=0
-    while [ ! -s "$target" ] && [ "$wait_time" -lt 300 ]; do
+    while [ ! -f "/tmp/regataos-update/download-complete-$nick.done" ] && [ "$wait_time" -lt 600 ]; do
         if [ -f "/tmp/regataos-update/stop-all-update.txt" ]; then
             rm -f "/tmp/regataos-update/stop-all-update.txt"
-            killall aria2c 2>/dev/null
-            killall wget 2>/dev/null
+            pkill -f "aria2c.*regataos-update" 2>/dev/null
+            pkill -f "wget.*regataos-update" 2>/dev/null
             exit 0
+        fi
+        if [ -f "/tmp/regataos-update/cancel-up-$nick.txt" ]; then
+            break
+        fi
+        if [ -f "/tmp/regataos-update/download-failed-$nick.txt" ]; then
+            break
+        fi
+        # Se o processo de download já terminou mas ainda não gravou o arquivo done
+        if [ -n "$dl_pid" ] && ! kill -0 "$dl_pid" 2>/dev/null; then
+            sleep 0.5
+            break
         fi
         sleep 1
         wait_time=$((wait_time + 1))
     done
+
+    # Se cancelado ou se o download falhou, pula para o próximo sem tentar instalar arquivo inválido
+    if [ -f "/tmp/regataos-update/cancel-up-$nick.txt" ]; then
+        sed -i "s/$nick//" "/tmp/regataos-update/downloadable-application.txt" 2>/dev/null
+        sed -i '/^$/d' "/tmp/regataos-update/downloadable-application.txt" 2>/dev/null
+        continue
+    fi
+
+    if [ ! -s "$target" ] || [ -f "/tmp/regataos-update/download-failed-$nick.txt" ]; then
+        echo "Aviso: Download do pacote $file incompleto ou falhou. Instalação pulada para preservar integridade." >> "/var/log/regataos-logs/regataos-update-$pkg.log"
+        sed -i "s/$nick//" "/tmp/regataos-update/downloadable-application.txt" 2>/dev/null
+        sed -i '/^$/d' "/tmp/regataos-update/downloadable-application.txt" 2>/dev/null
+        continue
+    fi
 
     # Transiciona estado no front-end: sai de 'Baixando' e entra em 'Instalando'
     sed -i "s/$nick//" "/tmp/regataos-update/downloadable-application.txt" 2>/dev/null

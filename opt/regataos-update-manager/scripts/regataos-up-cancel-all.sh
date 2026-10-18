@@ -41,11 +41,23 @@ if test -e "/tmp/regataos-update/update-specific-in-progress.txt"; then
 fi
 
 # Clear rpm and part files
-rm -f /tmp/regataos-update/*.rpm /tmp/regataos-update/*.part
+rm -f /tmp/regataos-update/*.rpm /tmp/regataos-update/*.part /tmp/regataos-update/*.done /tmp/regataos-update/download-failed-*.txt
 
-# Stop all update processes gracefully first, then force if needed
-killall -TERM aria2c wget 2>/dev/null
-pkill -TERM -f "zypper" 2>/dev/null
+# Stop all download processes tracked by PID gracefully first
+for pid_file in /tmp/regataos-update/dl-pid-*.txt; do
+    if [ -f "$pid_file" ]; then
+        pid=$(cat "$pid_file" 2>/dev/null)
+        if [ -n "$pid" ]; then
+            pkill -TERM -P "$pid" 2>/dev/null
+            kill -TERM "$pid" 2>/dev/null
+        fi
+    fi
+done
+
+# Terminate only aria2c and wget instances spawned for regataos-update
+pkill -TERM -f "aria2c.*regataos-update" 2>/dev/null
+pkill -TERM -f "wget.*regataos-update" 2>/dev/null
+pkill -TERM -f "zypper.*regataos" 2>/dev/null
 pkill -TERM -f "regataos-up" 2>/dev/null
 
 get_pid=$(cat /tmp/regataos-update/get-pid.txt 2>/dev/null)
@@ -56,9 +68,21 @@ fi
 
 sleep 0.5
 
-# Force kill any stubborn processes
-killall -9 aria2c wget 2>/dev/null
-pkill -9 -f "zypper" 2>/dev/null
+# Force kill any stubborn update-manager processes if still running
+for pid_file in /tmp/regataos-update/dl-pid-*.txt; do
+    if [ -f "$pid_file" ]; then
+        pid=$(cat "$pid_file" 2>/dev/null)
+        if [ -n "$pid" ]; then
+            pkill -9 -P "$pid" 2>/dev/null
+            kill -9 "$pid" 2>/dev/null
+        fi
+        rm -f "$pid_file"
+    fi
+done
+
+pkill -9 -f "aria2c.*regataos-update" 2>/dev/null
+pkill -9 -f "wget.*regataos-update" 2>/dev/null
+pkill -9 -f "zypper.*regataos" 2>/dev/null
 pkill -9 -f "regataos-up" 2>/dev/null
 if [ -n "$get_pid" ]; then
     pid=$(ps -C "$get_pid" 2>/dev/null | awk '{print $1}' | tail -1)

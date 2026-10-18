@@ -112,14 +112,26 @@ auto_heal_zypp_metadata() {
 
     log_healing "Atualizando metadados dos repositórios (zypper refresh)..."
     zypper --non-interactive --no-gpg-checks refresh 2>&1 | tee -a "$HEALING_LOG"
-    local status=$?
+    local status="${PIPESTATUS[0]}"
 
-    if [ $status -eq 0 ]; then
+    if [ "$status" -eq 0 ]; then
         log_healing "Repositórios atualizados e sincronizados com sucesso."
     else
         log_healing "Aviso: zypper refresh retornou código $status."
     fi
-    return $status
+    return "$status"
+}
+
+# ------------------------------------------------------------------------------
+# is_zypper_success <exit_code>
+# Retorna 0 (sucesso) para códigos 0 ou informativos de sucesso com pendência (100-106).
+# ------------------------------------------------------------------------------
+is_zypper_success() {
+    local code="${1:-1}"
+    case "$code" in
+        0|100|101|102|103|106) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 # ------------------------------------------------------------------------------

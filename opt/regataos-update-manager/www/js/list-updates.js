@@ -3,55 +3,64 @@ setTimeout(function () {
 	document.getElementById("loadscreen").style.display = "none";
 }, 1000);
 
+// Helper to get store apps catalog from window or fallback
+function getCatalog() {
+	if (typeof window !== "undefined" && typeof window.getStoreAppsCatalog === "function") {
+		return window.getStoreAppsCatalog();
+	}
+	if (typeof getStoreAppsCatalog === "function") {
+		return getStoreAppsCatalog();
+	}
+	return [];
+}
+
 // This function lists the updates available automatically
 function listUpdates() {
 	const fs = require('fs');
-	let files = [];
+	const appsListFile = "/tmp/regataos-update/apps-list.txt";
+	if (!fs.existsSync(appsListFile)) return;
 
-	// Read the app store's JSON files
-	fs.readdirSync("/opt/regataos-store/apps-list").forEach(files => {
-		fs.readFile("/opt/regataos-store/apps-list/" + files, "utf8", function (err, data) {
-			if (!err) {
-				let apps = JSON.parse(data);
-				for (let i = 0; i < apps.length; i++) {
-					let packageName = apps[i].package;
-					let packageNickname = apps[i].nickname;
-					let listAppsUpdate = fs.readFileSync("/tmp/regataos-update/apps-list.txt", "utf8");
-					if (listAppsUpdate.includes(packageName)) {
-						const dad = window.document.querySelector("div#all-apps");
-						const child = dad.querySelector("div#" + packageNickname);
-						if (child == null) {
-							let newAppBlocks = document.createElement("div");
-							newAppBlocks.id = packageNickname;
-							newAppBlocks.classList.add("block-app");
-							let iconFile = fs.readFileSync("/tmp/regataos-update/" + packageName + "-icon.txt", "utf8");
-							let appName = apps[i].name;
-							let marks = "'"
-							newAppBlocks.innerHTML = ' \
-							<div class="icon-app" style="background-image:url(' + iconFile + ');"></div> \
-							<div class="app-name">' + appName + '</div> \
-							<div id="pending-' + packageNickname + '" class="app-status-pending app-status">Pending...</div> \
-							<div id="downloading-' + packageNickname + '" class="app-status-download app-status">Downloading...</div> \
-							<div id="download-status-' + packageNickname + '" class="download-status-app"> \
-								<div id="downloaded-' + packageNickname + '" class="app-status-percentage app-status"></div> \
-								<div id="total-download-' + packageNickname + '" class="total-download-percentage app-status"></div> \
-								<div id="percentage-' + packageNickname + '" class="app-status-percentage app-status"></div> \
-							</div> \
-							<div id="installing-' + packageNickname + '" class="app-status-install app-status">Installing...</div> \
-							<div id="concluded-' + packageNickname + '" class="app-status-concluded app-status">Concluded!</div> \
-							<div id="update-app-' + packageNickname + '" class="update-app" onclick=' + marks + 'updateSpecificApp("' + packageNickname + '");' + marks + '>Update</div> \
-							<div id="cancel-app-' + packageNickname + '" class="cancel-app-' + packageNickname + ' cancel-app" onclick=' + marks + 'cancelSpecificApp("' + packageNickname + '");' + marks + '>Cancel</div>';
-							let allBlocks = document.querySelector("div#all-apps");
-							allBlocks.appendChild(newAppBlocks);
-							applyTranslationPages();
-							cacheAppQueueElements();
-						}
-					}
+	const listAppsUpdate = fs.readFileSync(appsListFile, "utf8");
+	const apps = getCatalog();
+	const dad = window.document.querySelector("div#all-apps");
+	if (!dad) return;
+
+	for (let i = 0; i < apps.length; i++) {
+		const packageName = apps[i].package;
+		const packageNickname = apps[i].nickname;
+		if (listAppsUpdate.includes(packageName)) {
+			const child = dad.querySelector("div#" + packageNickname);
+			if (child == null) {
+				let iconFile = "";
+				const iconPath = "/tmp/regataos-update/" + packageName + "-icon.txt";
+				if (fs.existsSync(iconPath)) {
+					try { iconFile = fs.readFileSync(iconPath, "utf8"); } catch (e) { }
 				}
-				return;
+				let appName = apps[i].name;
+				let marks = "'";
+				let newAppBlocks = document.createElement("div");
+				newAppBlocks.id = packageNickname;
+				newAppBlocks.classList.add("block-app");
+				newAppBlocks.innerHTML = ' \
+				<div class="icon-app" style="background-image:url(' + iconFile + ');"></div> \
+				<div class="app-name">' + appName + '</div> \
+				<div id="pending-' + packageNickname + '" class="app-status-pending app-status">Pending...</div> \
+				<div id="downloading-' + packageNickname + '" class="app-status-download app-status">Downloading...</div> \
+				<div id="download-status-' + packageNickname + '" class="download-status-app"> \
+					<div id="downloaded-' + packageNickname + '" class="app-status-percentage app-status"></div> \
+					<div id="total-download-' + packageNickname + '" class="total-download-percentage app-status"></div> \
+					<div id="percentage-' + packageNickname + '" class="app-status-percentage app-status"></div> \
+				</div> \
+				<div id="installing-' + packageNickname + '" class="app-status-install app-status">Installing...</div> \
+				<div id="concluded-' + packageNickname + '" class="app-status-concluded app-status">Concluded!</div> \
+				<div id="update-app-' + packageNickname + '" class="update-app" onclick=' + marks + 'updateSpecificApp("' + packageNickname + '");' + marks + '>Update</div> \
+				<div id="cancel-app-' + packageNickname + '" class="cancel-app-' + packageNickname + ' cancel-app" onclick=' + marks + 'cancelSpecificApp("' + packageNickname + '");' + marks + '>Cancel</div>';
+				dad.appendChild(newAppBlocks);
+				if (typeof applyTranslationPages === "function") applyTranslationPages();
+				cacheAppQueueElements();
 			}
-		});
-	});
+		}
+	}
 }
 
 // Cache of DOM elements per app — populated once when the app list is rendered.
@@ -62,30 +71,25 @@ function cacheAppQueueElements() {
 	const appsListFile = "/tmp/regataos-update/apps-list.txt";
 	if (!fs.existsSync(appsListFile)) return;
 
-	fs.readdirSync("/opt/regataos-store/apps-list").forEach(file => {
-		fs.readFile("/opt/regataos-store/apps-list/" + file, "utf8", function (err, data) {
-			if (err) return;
-			const apps = JSON.parse(data);
-			const appsListContent = fs.readFileSync(appsListFile, "utf8");
-			for (let i = 0; i < apps.length; i++) {
-				const nickname = apps[i].nickname;
-				if (appQueueElements[nickname]) continue;
-				// Only cache apps that are in the update list and rendered in the DOM.
-				if (!appsListContent.includes(apps[i].package)) continue;
-				const pending = document.querySelector("div#pending-" + nickname);
-				if (pending === null) continue;
-				appQueueElements[nickname] = {
-					pending:     pending,
-					downloading: document.querySelector("div#downloading-" + nickname),
-					installing:  document.querySelector("div#installing-" + nickname),
-					updateApp:   document.querySelector("div#update-app-" + nickname),
-					cancelApp:   document.querySelector("div.cancel-app-" + nickname),
-					concluded:   document.querySelector("div#concluded-" + nickname),
-					_state:      null,
-				};
-			}
-		});
-	});
+	const appsListContent = fs.readFileSync(appsListFile, "utf8");
+	const apps = getCatalog();
+	for (let i = 0; i < apps.length; i++) {
+		const nickname = apps[i].nickname;
+		if (appQueueElements[nickname]) continue;
+		// Only cache apps that are in the update list and rendered in the DOM.
+		if (!appsListContent.includes(apps[i].package)) continue;
+		const pending = document.querySelector("div#pending-" + nickname);
+		if (pending === null) continue;
+		appQueueElements[nickname] = {
+			pending:     pending,
+			downloading: document.querySelector("div#downloading-" + nickname),
+			installing:  document.querySelector("div#installing-" + nickname),
+			updateApp:   document.querySelector("div#update-app-" + nickname),
+			cancelApp:   document.querySelector("div.cancel-app-" + nickname),
+			concluded:   document.querySelector("div#concluded-" + nickname),
+			_state:      null,
+		};
+	}
 }
 
 // List of applications in the queue and downloading

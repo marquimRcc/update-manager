@@ -1,85 +1,60 @@
 #!/bin/bash
 
 # This script cancels the automatic update of any app in the queue or in the process of downloading.
-app_nickname="$NICKNAME"
+app_nickname="${NICKNAME:-$1}"
 app_name="$1"
 echo "Ending the $app_name app update"
 
 sleep 1
 
-sed -i '/^$/d' "/tmp/regataos-update/downloadable-application.txt"
-sed -i '/^$/d' "/tmp/regataos-update/installing-application.txt"
-sed -i '/^$/d' "/tmp/regataos-update/list-apps-queue.txt"
+# Sinaliza cancelamento para os loops dos scripts de atualização
+echo "" > "/tmp/regataos-update/cancel-up-$app_nickname.txt"
 
-download=$(wc -l /tmp/regataos-update/downloadable-application.txt | awk '{print $1}')
-installation=$(wc -l /tmp/regataos-update/installing-application.txt | awk '{print $1}')
-queue=$(wc -l /tmp/regataos-update/list-apps-queue.txt | awk '{print $1}')
-
-if [ $(echo $(($download+$installation+$queue))) -eq 0 ]; then
-    rm -f "/tmp/regataos-update/update-specific-in-progress.txt"
+# Encerra o processo de download específico deste app e seus filhos
+if test -f "/tmp/regataos-update/dl-pid-$app_nickname.txt"; then
+    real_pid=$(cat "/tmp/regataos-update/dl-pid-$app_nickname.txt" 2>/dev/null)
+    if [ -n "$real_pid" ]; then
+        pkill -TERM -P "$real_pid" 2>/dev/null
+        kill -TERM "$real_pid" 2>/dev/null
+        sleep 0.2
+        pkill -9 -P "$real_pid" 2>/dev/null
+        kill -9 "$real_pid" 2>/dev/null
+    fi
+    rm -f "/tmp/regataos-update/dl-pid-$app_nickname.txt"
 fi
 
-if [[ $(grep -r "$app_nickname" "/tmp/regataos-update/list-apps-queue.txt") == *"$app_nickname"* ]]; then
-    sed -i "s/$app_nickname//" "/tmp/regataos-update/list-apps-queue.txt"
-    sed -i '/^$/d' "/tmp/regataos-update/list-apps-queue.txt"
-
-    echo "" > "/tmp/regataos-update/cancel-up-$app_nickname.txt"
-
-    get_pid=$(cat /tmp/regataos-update/get-pid-$app_nickname.txt)
-    pid=$(ps -C "$get_pid" | awk '{print $1}'| tail -1)
-    kill -STOP $pid
-    kill -KILL $pid
-
-    sed -i "s/$app_nickname//" "/tmp/regataos-update/updated-apps.txt"
-    sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
-
-    sed -i "s/$app_nickname//" "/var/log/regataos-logs/updated-apps.txt"
-    sed -i '/^$/d' "/var/log/regataos-logs/updated-apps.txt"
-
-else
-    if [[ $(grep -r "$app_nickname" "/tmp/regataos-update/downloadable-application.txt") == *"$app_nickname"* ]]; then
-        if test -e "/tmp/regataos-update/get-pid-$app_nickname.txt";then
-            echo "" > "/tmp/regataos-update/cancel-up-$app_nickname.txt"
-
-            get_pid=$(cat /tmp/regataos-update/get-pid-$app_nickname.txt)
-            pid=$(ps -C "$get_pid" | awk '{print $1}'| tail -1)
-            kill -STOP $pid
-            kill -KILL $pid
-
-            sed -i "s/$app_nickname//" "/tmp/regataos-update/updated-apps.txt"
-            sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
-
-            sed -i "s/$app_nickname//" "/var/log/regataos-logs/updated-apps.txt"
-            sed -i '/^$/d' "/var/log/regataos-logs/updated-apps.txt"
-
-        else
-            if test -e "/tmp/regataos-update/get-pid.txt";then
-                echo "" > "/tmp/regataos-update/cancel-up-$app_nickname.txt"
-
-                get_pid=$(cat /tmp/regataos-update/get-pid.txt)
-                pid=$(ps -C "$get_pid" | awk '{print $1}'| tail -1)
-                kill -STOP $pid
-                kill -KILL $pid
-
-                sed -i "s/$app_nickname//" "/tmp/regataos-update/updated-apps.txt"
-                sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
-
-                sed -i "s/$app_nickname//" "/var/log/regataos-logs/updated-apps.txt"
-                sed -i '/^$/d' "/var/log/regataos-logs/updated-apps.txt"
-            fi
-        fi
-
-        sed -i "s/$app_nickname//" "/tmp/regataos-update/downloadable-application.txt"
-        sed -i '/^$/d' "/tmp/regataos-update/downloadable-application.txt"
-
-        sed -i "s/$app_nickname//" "/tmp/regataos-update/installing-application.txt"
-        sed -i '/^$/d' "/tmp/regataos-update/installing-application.txt"
-
-        sed -i "s/$app_nickname//" "/tmp/regataos-update/updated-apps.txt"
-        sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
-
-        sed -i "s/$app_nickname//" "/var/log/regataos-logs/updated-apps.txt"
-        sed -i '/^$/d' "/var/log/regataos-logs/updated-apps.txt"
-
+# Fallback por get-pid caso exista
+if test -f "/tmp/regataos-update/get-pid-$app_nickname.txt"; then
+    get_pid=$(cat "/tmp/regataos-update/get-pid-$app_nickname.txt" 2>/dev/null)
+    pid=$(ps -C "$get_pid" 2>/dev/null | awk '{print $1}' | tail -1)
+    if [ -n "$pid" ]; then
+        kill -TERM "$pid" 2>/dev/null
+        kill -KILL "$pid" 2>/dev/null
     fi
+    rm -f "/tmp/regataos-update/get-pid-$app_nickname.txt"
+fi
+
+# Limpa logs e marcadores de status do app cancelado
+rm -f "/tmp/regataos-update/$app_nickname-download-percentage.log"
+rm -f "/tmp/regataos-update/download-complete-$app_nickname.done"
+rm -f "/tmp/regataos-update/download-failed-$app_nickname.txt"
+
+# Remove o app de todas as listas de controle
+for file in "/tmp/regataos-update/list-apps-queue.txt" \
+            "/tmp/regataos-update/downloadable-application.txt" \
+            "/tmp/regataos-update/installing-application.txt" \
+            "/tmp/regataos-update/updated-apps.txt" \
+            "/var/log/regataos-logs/updated-apps.txt"; do
+    if [ -f "$file" ]; then
+        sed -i "s/$app_nickname//" "$file" 2>/dev/null
+        sed -i '/^$/d' "$file" 2>/dev/null
+    fi
+done
+
+download=$(wc -l /tmp/regataos-update/downloadable-application.txt 2>/dev/null | awk '{print $1}')
+installation=$(wc -l /tmp/regataos-update/installing-application.txt 2>/dev/null | awk '{print $1}')
+queue=$(wc -l /tmp/regataos-update/list-apps-queue.txt 2>/dev/null | awk '{print $1}')
+
+if [ $(( ${download:-0} + ${installation:-0} + ${queue:-0} )) -eq 0 ]; then
+    rm -f "/tmp/regataos-update/update-specific-in-progress.txt"
 fi

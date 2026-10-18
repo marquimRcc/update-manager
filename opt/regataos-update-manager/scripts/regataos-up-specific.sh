@@ -93,20 +93,24 @@ function update_all_apps() {
 
     # Download app
     echo "downloading $app_nickname" > "/tmp/regataos-update/get-pid-$app_nickname.txt"
+    local target_file="/tmp/regataos-update/$app_download_file_name"
+    local part_file="/tmp/regataos-update/$app_download_file_name.part"
+    local log_file="/tmp/regataos-update/$app_nickname-download-percentage.log"
+    rm -f "$part_file"
+
     if command -v aria2c >/dev/null 2>&1; then
         aria2c --follow-metalink=mem --metalink-preferred-protocol=https \
             -x 16 -s 16 -j 16 -k 1M --file-allocation=none --check-certificate=false \
             --allow-overwrite=true --auto-file-renaming=false \
             --summary-interval=1 \
-            -d "/tmp/regataos-update" -o "$app_download_file_name" "$app_download_link" > "/tmp/regataos-update/$app_nickname-download-percentage.log" 2>&1
+            -d "/tmp/regataos-update" -o "$app_download_file_name.part" "$app_download_link" > "$log_file" 2>&1
     fi
 
-    # Validação rigorosa: se falhou, está vazio ou é XML/metalink em vez de RPM, fallback para wget
-    local target_file="/tmp/regataos-update/$app_download_file_name"
+    # Validação rigorosa do arquivo temporário (.part): se falhou, está vazio ou é corrompido, fallback para wget
     local is_valid=0
-    if [ -s "$target_file" ]; then
+    if [ -s "$part_file" ]; then
         if [[ "$app_download_file_name" == *.rpm ]]; then
-            if python3 -c "import sys; sys.exit(0 if open('$target_file', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
+            if python3 -c "import sys; sys.exit(0 if open('$part_file', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
                 is_valid=1
             fi
         else
@@ -115,8 +119,28 @@ function update_all_apps() {
     fi
 
     if [ "$is_valid" -ne 1 ]; then
-        rm -f "$target_file"
-        wget --no-check-certificate --progress=dot:mega -O "$target_file" "$app_download_link" > "/tmp/regataos-update/$app_nickname-download-percentage.log" 2>&1
+        rm -f "$part_file"
+        wget --no-check-certificate --progress=dot:mega -O "$part_file" "$app_download_link" > "$log_file" 2>&1
+        if [ -s "$part_file" ]; then
+            if [[ "$app_download_file_name" == *.rpm ]]; then
+                if python3 -c "import sys; sys.exit(0 if open('$part_file', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
+                    is_valid=1
+                fi
+            else
+                is_valid=1
+            fi
+        fi
+    fi
+
+    if [ "$is_valid" -eq 1 ]; then
+        mv -f "$part_file" "$target_file"
+        echo "100" > "$log_file"
+    else
+        rm -f "$part_file"
+        echo "Falha no download ou integridade do pacote $app_download_file_name" >> "/var/log/regataos-logs/regataos-update-$package_name.log"
+        rm -f "/tmp/regataos-update/get-pid-$app_nickname.txt"
+        echo "" > "/tmp/regataos-update/downloadable-application.txt"
+        return 1
     fi
 
     # Install package

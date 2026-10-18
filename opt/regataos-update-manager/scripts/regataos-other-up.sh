@@ -34,6 +34,7 @@ if [[ $(grep -r "other-updates" "/tmp/regataos-update/updated-apps.txt") != *"ot
         run_zypper_resilient up --allow-downgrade --replacefiles regataos-base plasma6-desktop plasma6-workspace plasma6-session plasma6-session-x11
 
         run_zypper_resilient update --allow-downgrade --replacefiles --auto-agree-with-licenses
+        update_exit_code=$?
 
         echo "" >"/tmp/regataos-update/downloadable-application-other-updates.txt"
         echo "" >"/tmp/regataos-update/installing-application-other-updates.txt"
@@ -41,45 +42,50 @@ if [[ $(grep -r "other-updates" "/tmp/regataos-update/updated-apps.txt") != *"ot
         echo "" >"/tmp/regataos-update/waiting-for-installation.txt"
         echo "" >"/tmp/regataos-update/installing-system-update.txt"
         echo "" >"/tmp/regataos-update/downloading-system-update.txt"
-
-        echo "other-updates" >>"/tmp/regataos-update/updated-apps.txt"
-        sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
-
-        sed -i "s/other-updates//" "/tmp/regataos-update/apps-list.txt"
-        sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt"
-
         rm -f "/tmp/regataos-update/other-updates-in-progress.txt"
+
+        if is_zypper_success "$update_exit_code"; then
+            echo "other-updates" >>"/tmp/regataos-update/updated-apps.txt"
+            sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
+
+            sed -i "s/other-updates//" "/tmp/regataos-update/apps-list.txt"
+            sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt"
+        else
+            echo "Aviso: Atualização do sistema finalizou com erro (código $update_exit_code)." >> "$HEALING_PIPE_LOG"
+            echo "error" > "/tmp/regataos-update/system-update-error.txt"
+            echo "update-error" > "/tmp/regataos-update/status.txt"
+        fi
     fi
 fi
 
-number_packages=$(wc -l /tmp/regataos-update/package-list.txt | awk '{print $1}')
-if [ $(echo $number_packages) -ge 1 ]; then
-    if [[ $(grep -r "other-updates" "/tmp/regataos-update/updated-apps.txt") == *"other-updates"* ]]; then
+number_packages=$(wc -l /tmp/regataos-update/package-list.txt 2>/dev/null | awk '{print $1}')
+if [ "${number_packages:-0}" -ge 1 ]; then
+    if [[ $(grep -r "other-updates" "/tmp/regataos-update/updated-apps.txt" 2>/dev/null) == *"other-updates"* ]]; then
         if test -e "/tmp/regataos-update/apps-list.txt"; then
             number_apps=$(wc -l /tmp/regataos-update/apps-list.txt | awk '{print $1}')
             if [ $(echo $number_apps) -eq 0 ]; then
                 echo "updated" >"/tmp/regataos-update/status.txt"
                 rm -f /tmp/regataos-update/already_updated.txt
                 rm -f /tmp/regataos-update/*.rpm
-                killall install-update.py
-                killall alert-update.py
+                pkill -f "install-update.py" 2>/dev/null
+                pkill -f "alert-update.py" 2>/dev/null
             fi
-
         else
             echo "updated" >"/tmp/regataos-update/status.txt"
             rm -f /tmp/regataos-update/already_updated.txt
             rm -f /tmp/regataos-update/*.rpm
-            killall install-update.py
-            killall alert-update.py
+            pkill -f "install-update.py" 2>/dev/null
+            pkill -f "alert-update.py" 2>/dev/null
         fi
     fi
-
 else
-    echo "updated" >"/tmp/regataos-update/status.txt"
-    rm -f /tmp/regataos-update/already_updated.txt
-    rm -f /tmp/regataos-update/*.rpm
-    killall install-update.py
-    killall alert-update.py
+    if [ ! -f "/tmp/regataos-update/system-update-error.txt" ]; then
+        echo "updated" >"/tmp/regataos-update/status.txt"
+        rm -f /tmp/regataos-update/already_updated.txt
+        rm -f /tmp/regataos-update/*.rpm
+        pkill -f "install-update.py" 2>/dev/null
+        pkill -f "alert-update.py" 2>/dev/null
+    fi
 fi
 
 if test -e "/usr/share/regataos/first-update.txt"; then
