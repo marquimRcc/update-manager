@@ -10,10 +10,31 @@ sleep 1
 # Sinaliza cancelamento para os loops dos scripts de atualização
 echo "" > "/tmp/regataos-update/cancel-up-$app_nickname.txt"
 
-# Encerra o processo de download específico deste app e seus filhos
+# Função para validar se o PID pertence de fato a um processo legítimo de download/update
+is_safe_update_process() {
+    local pid="$1"
+    [ -n "$pid" ] || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [ "$pid" -gt 100 ] || return 1
+    [ -d "/proc/$pid" ] || return 1
+
+    local cmdline
+    cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)
+    [ -n "$cmdline" ] || return 1
+
+    if [[ "$cmdline" == *"regataos-update"* || \
+          "$cmdline" == *"aria2c"* || \
+          "$cmdline" == *"wget"* || \
+          "$cmdline" == *"regataos-up"* ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Encerra o processo de download específico deste app e seus filhos apenas se validado
 if test -f "/tmp/regataos-update/dl-pid-$app_nickname.txt"; then
     real_pid=$(cat "/tmp/regataos-update/dl-pid-$app_nickname.txt" 2>/dev/null)
-    if [ -n "$real_pid" ]; then
+    if is_safe_update_process "$real_pid"; then
         pkill -TERM -P "$real_pid" 2>/dev/null
         kill -TERM "$real_pid" 2>/dev/null
         sleep 0.2
@@ -27,7 +48,7 @@ fi
 if test -f "/tmp/regataos-update/get-pid-$app_nickname.txt"; then
     get_pid=$(cat "/tmp/regataos-update/get-pid-$app_nickname.txt" 2>/dev/null)
     pid=$(ps -C "$get_pid" 2>/dev/null | awk '{print $1}' | tail -1)
-    if [ -n "$pid" ]; then
+    if is_safe_update_process "$pid"; then
         kill -TERM "$pid" 2>/dev/null
         kill -KILL "$pid" 2>/dev/null
     fi

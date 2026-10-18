@@ -91,6 +91,20 @@ function update_all_apps() {
     sed -i '/^$/d' "/tmp/regataos-update/list-apps-queue.txt"
     echo "$first_list_item" > "/tmp/regataos-update/downloadable-application.txt"
 
+    # Validação rigorosa de integridade de arquivo de pacote
+    validate_package_file() {
+        local pkg_path="$1"
+        [ -s "$pkg_path" ] || return 1
+
+        if [[ "$pkg_path" == *.rpm ]]; then
+            python3 -c "import sys; sys.exit(0 if open('$pkg_path', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null || return 1
+            if command -v rpm >/dev/null 2>&1; then
+                rpm -qp --nosignature --nodigest "$pkg_path" >/dev/null 2>&1 || return 1
+            fi
+        fi
+        return 0
+    }
+
     # Download app
     echo "downloading $app_nickname" > "/tmp/regataos-update/get-pid-$app_nickname.txt"
     local target_file="/tmp/regataos-update/$app_download_file_name"
@@ -98,41 +112,29 @@ function update_all_apps() {
     local log_file="/tmp/regataos-update/$app_nickname-download-percentage.log"
     rm -f "$part_file"
 
+    local dl_success=0
     if command -v aria2c >/dev/null 2>&1; then
         aria2c --follow-metalink=mem --metalink-preferred-protocol=https \
             -x 16 -s 16 -j 16 -k 1M --file-allocation=none --check-certificate=false \
             --allow-overwrite=true --auto-file-renaming=false \
             --summary-interval=1 \
             -d "/tmp/regataos-update" -o "$app_download_file_name.part" "$app_download_link" > "$log_file" 2>&1
-    fi
-
-    # Validação rigorosa do arquivo temporário (.part): se falhou, está vazio ou é corrompido, fallback para wget
-    local is_valid=0
-    if [ -s "$part_file" ]; then
-        if [[ "$app_download_file_name" == *.rpm ]]; then
-            if python3 -c "import sys; sys.exit(0 if open('$part_file', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
-                is_valid=1
-            fi
-        else
-            is_valid=1
+        local aria_status=$?
+        if [ "$aria_status" -eq 0 ] && validate_package_file "$part_file"; then
+            dl_success=1
         fi
     fi
 
-    if [ "$is_valid" -ne 1 ]; then
+    if [ "$dl_success" -ne 1 ]; then
         rm -f "$part_file"
         wget --no-check-certificate --progress=dot:mega -O "$part_file" "$app_download_link" > "$log_file" 2>&1
-        if [ -s "$part_file" ]; then
-            if [[ "$app_download_file_name" == *.rpm ]]; then
-                if python3 -c "import sys; sys.exit(0 if open('$part_file', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
-                    is_valid=1
-                fi
-            else
-                is_valid=1
-            fi
+        local wget_status=$?
+        if [ "$wget_status" -eq 0 ] && validate_package_file "$part_file"; then
+            dl_success=1
         fi
     fi
 
-    if [ "$is_valid" -eq 1 ]; then
+    if [ "$dl_success" -eq 1 ]; then
         mv -f "$part_file" "$target_file"
         echo "100" > "$log_file"
     else
@@ -154,7 +156,8 @@ function update_all_apps() {
         echo "" > "/tmp/regataos-update/installation-in-progress.txt"
         cd /tmp/regataos-update/
         export HEALING_PIPE_LOG="/var/log/regataos-logs/regataos-update-$package_name.log"
-        run_zypper_resilient install --allow-downgrade --replacefiles --auto-agree-with-licenses $app_download_file_name
+        run_zypper_resilient install --allow-downgrade --replacefiles --auto-agree-with-licenses "$app_download_file_name"
+        local inst_exit=$?
 
         # Run additional application settings
         if test -e "/tmp/regataos-prime/config/regataos-prime.conf"; then
@@ -168,27 +171,32 @@ function update_all_apps() {
         echo "" > "/tmp/regataos-update/installing-application.txt"
         sed -i '/^$/d' "/tmp/regataos-update/installing-application.txt"
 
-        sed -i "s/$package_name//" "/tmp/regataos-update/apps-list.txt"
-        sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt"
+        if is_zypper_success "$inst_exit"; then
+            sed -i "s/$package_name//" "/tmp/regataos-update/apps-list.txt"
+            sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt"
 
-        number_apps=$(wc -l /tmp/regataos-update/apps-list.txt | awk '{print $1}')
-        if [ $(echo $number_apps) -eq 0 ]; then
-            echo "updated" > "/tmp/regataos-update/status.txt"
-            rm -f "/tmp/regataos-update/already_updated.txt"
-            killall alert-update.py
-            killall install-update.py
-            kill -KILL $(ps -C "python install-update.py" | awk '{print $1}'| tail -1)
+            if [[ $(grep -r "$app_nickname" "/var/log/regataos-logs/updated-apps.txt") != *"$app_nickname"* ]]; then
+                echo "$app_nickname" >> "/var/log/regataos-logs/updated-apps.txt"
+                sed -i '/^$/d' "/var/log/regataos-logs/updated-apps.txt"
+            fi
+
+            echo "$app_nickname" >> "/tmp/regataos-update/updated-apps.txt"
+            sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
+
+            number_apps=$(wc -l /tmp/regataos-update/apps-list.txt 2>/dev/null | awk '{print $1}')
+            if [ "${number_apps:-0}" -eq 0 ]; then
+                echo "updated" > "/tmp/regataos-update/status.txt"
+                rm -f "/tmp/regataos-update/already_updated.txt"
+                pkill -f "alert-update.py" 2>/dev/null
+                pkill -f "install-update.py" 2>/dev/null
+            fi
+        else
+            echo "Erro: Falha na instalação do pacote $app_download_file_name para $app_nickname (código $inst_exit)." >> "/var/log/regataos-logs/regataos-update-$package_name.log"
+            echo "error" > "/tmp/regataos-update/install-error-$app_nickname.txt"
         fi
-
-        if [[ $(grep -r "$app_nickname" "/var/log/regataos-logs/updated-apps.txt") != *"$app_nickname"* ]]; then
-            echo "$app_nickname" >> "/var/log/regataos-logs/updated-apps.txt"
-            sed -i '/^$/d' "/var/log/regataos-logs/updated-apps.txt"
-        fi
-
-        echo "$app_nickname" >> "/tmp/regataos-update/updated-apps.txt"
-        sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
 
         rm -f "/tmp/regataos-update/installation-in-progress.txt"
+        rm -f "/tmp/regataos-update/$app_download_file_name"
 
         sed -i '/^$/d' "/tmp/regataos-update/downloadable-application.txt"
         sed -i '/^$/d' "/tmp/regataos-update/installing-application.txt"

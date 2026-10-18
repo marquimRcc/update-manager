@@ -40,14 +40,35 @@ if test -e "/tmp/regataos-update/update-specific-in-progress.txt"; then
     fi
 fi
 
+# Função para validar se o PID pertence de fato a um processo legítimo de download/update
+is_safe_update_process() {
+    local pid="$1"
+    [ -n "$pid" ] || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [ "$pid" -gt 100 ] || return 1
+    [ -d "/proc/$pid" ] || return 1
+
+    local cmdline
+    cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)
+    [ -n "$cmdline" ] || return 1
+
+    if [[ "$cmdline" == *"regataos-update"* || \
+          "$cmdline" == *"aria2c"* || \
+          "$cmdline" == *"wget"* || \
+          "$cmdline" == *"regataos-up"* ]]; then
+        return 0
+    fi
+    return 1
+}
+
 # Clear rpm and part files
 rm -f /tmp/regataos-update/*.rpm /tmp/regataos-update/*.part /tmp/regataos-update/*.done /tmp/regataos-update/download-failed-*.txt
 
-# Stop all download processes tracked by PID gracefully first
+# Stop all download processes tracked by PID gracefully first (apenas se validados)
 for pid_file in /tmp/regataos-update/dl-pid-*.txt; do
     if [ -f "$pid_file" ]; then
         pid=$(cat "$pid_file" 2>/dev/null)
-        if [ -n "$pid" ]; then
+        if is_safe_update_process "$pid"; then
             pkill -TERM -P "$pid" 2>/dev/null
             kill -TERM "$pid" 2>/dev/null
         fi
@@ -63,7 +84,9 @@ pkill -TERM -f "regataos-up" 2>/dev/null
 get_pid=$(cat /tmp/regataos-update/get-pid.txt 2>/dev/null)
 if [ -n "$get_pid" ]; then
     pid=$(ps -C "$get_pid" 2>/dev/null | awk '{print $1}' | tail -1)
-    kill -TERM $pid 2>/dev/null
+    if is_safe_update_process "$pid"; then
+        kill -TERM "$pid" 2>/dev/null
+    fi
 fi
 
 sleep 0.5
@@ -72,7 +95,7 @@ sleep 0.5
 for pid_file in /tmp/regataos-update/dl-pid-*.txt; do
     if [ -f "$pid_file" ]; then
         pid=$(cat "$pid_file" 2>/dev/null)
-        if [ -n "$pid" ]; then
+        if is_safe_update_process "$pid"; then
             pkill -9 -P "$pid" 2>/dev/null
             kill -9 "$pid" 2>/dev/null
         fi
@@ -86,11 +109,15 @@ pkill -9 -f "zypper.*regataos" 2>/dev/null
 pkill -9 -f "regataos-up" 2>/dev/null
 if [ -n "$get_pid" ]; then
     pid=$(ps -C "$get_pid" 2>/dev/null | awk '{print $1}' | tail -1)
-    kill -KILL $pid 2>/dev/null
+    if is_safe_update_process "$pid"; then
+        kill -KILL "$pid" 2>/dev/null
+    fi
 fi
 
-# Clean up zypp locks if left behind
-rm -f /var/run/zypp.pid /var/run/zypper.pid 2>/dev/null
+# Clean up zypp locks only if no Zypper process is actively running
+if ! pgrep -f "zypper" >/dev/null 2>&1; then
+    rm -f /var/run/zypp.pid /var/run/zypper.pid 2>/dev/null
+fi
 
 # Return to the initial state of the front end
 echo "" >"/tmp/regataos-update/downloadable-application.txt"

@@ -723,9 +723,61 @@ function systemUpdatesProgress() {
 }
 systemUpdatesProgress();
 
+// Safe DOM renderer for system update list items to prevent HTML injection
+function renderSystemUpdateList(container) {
+    const fs = require('fs');
+    container.innerHTML = "";
+    const packageListFile = "/tmp/regataos-update/package-list.txt";
+    if (!fs.existsSync(packageListFile)) return;
+
+    const lines = fs.readFileSync(packageListFile, "utf8").split('\n').map(l => l.trim()).filter(Boolean);
+    const listWrapper = document.createElement("div");
+    listWrapper.id = "system-update-list";
+
+    for (const pkg of lines) {
+        const safePkg = pkg.replace(/[^a-zA-Z0-9_\-\.\+]/g, "");
+        if (!safePkg) continue;
+
+        const item = document.createElement("div");
+        item.className = "system-update-list-item";
+
+        const img = document.createElement("img");
+        img.src = "";
+        img.alt = "";
+
+        const title = document.createElement("div");
+        title.className = `otherup-app-title otherup-app-${safePkg}`;
+        title.textContent = safePkg;
+
+        const waiting = document.createElement("div");
+        waiting.className = `otherup-app-status-waiting otherup-app-status-waiting-${safePkg} otherup-app-status-desc`;
+        waiting.textContent = "Waiting for installation...";
+
+        const download = document.createElement("div");
+        download.className = `otherup-app-status-download otherup-app-status-download-${safePkg} otherup-app-status-desc`;
+        download.textContent = "Downloading...";
+
+        const install = document.createElement("div");
+        install.className = `otherup-app-status-install otherup-app-status-install-${safePkg} otherup-app-status-desc`;
+        install.textContent = "Installing...";
+
+        const concluded = document.createElement("div");
+        concluded.className = `otherup-app-status-concluded otherup-app-status-concluded-${safePkg} otherup-app-status-desc`;
+        concluded.textContent = "Concluded!";
+
+        item.appendChild(img);
+        item.appendChild(title);
+        item.appendChild(waiting);
+        item.appendChild(download);
+        item.appendChild(install);
+        item.appendChild(concluded);
+        listWrapper.appendChild(item);
+    }
+    container.appendChild(listWrapper);
+}
+
 // Functions to show or hide install details in the progress card
 function displayInstallDetails(display) {
-    const fs = require('fs');
     const contents = document.querySelector(".install-details-contents");
     const showBtn = document.querySelector(".show-install-details");
     const hideBtn = document.querySelector(".hide-install-details");
@@ -733,12 +785,7 @@ function displayInstallDetails(display) {
     if (!contents || !showBtn || !hideBtn) return;
 
     if (display === 'show') {
-        const packageListHtml = "/tmp/regataos-update/package-list-html.txt";
-        if (fs.existsSync(packageListHtml)) {
-            let html = fs.readFileSync(packageListHtml, "utf8");
-            html = html.replace(/\s/g, "\n");
-            contents.innerHTML = html;
-        }
+        renderSystemUpdateList(contents);
         showBtn.style.display = "none";
         hideBtn.style.display = "inline-flex";
         contents.style.display = "block";
@@ -777,18 +824,12 @@ function cacheSystemUpdateElements() {
 
 // Functions to show or hide "Other updates" details.
 function displayDetails(display) {
-    const fs = require('fs');
     const moreDetailsContents = document.querySelector(".more-details-contents");
     const showDetails = document.querySelector(".show-details");
     const hideDetails = document.querySelector(".hide-details");
 
     if (display.includes("show")) {
-        const packageListHtml = "/tmp/regataos-update/package-list-html.txt";
-        if (fs.existsSync(packageListHtml)) {
-            let getPackageListHtml = fs.readFileSync(packageListHtml, "utf8");
-            getPackageListHtml = getPackageListHtml.replace(/\s/g, "\n");
-            moreDetailsContents.innerHTML = getPackageListHtml;
-        }
+        renderSystemUpdateList(moreDetailsContents);
         showDetails.style.display = "none";
         hideDetails.style.display = "flex";
         moreDetailsContents.style.display = "block";

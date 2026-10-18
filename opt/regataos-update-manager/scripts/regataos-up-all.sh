@@ -128,6 +128,22 @@ if [ "${number_packages:-0}" -ge 1 ]; then
     SYSTEM_DOWNLOAD_PID=$!
 fi
 
+# Validação rigorosa de integridade de arquivo de pacote
+validate_package_file() {
+    local pkg_path="$1"
+    [ -s "$pkg_path" ] || return 1
+
+    if [[ "$pkg_path" == *.rpm ]]; then
+        # 1. Checa magic number de 4 bytes (\xed\xab\xee\xdb)
+        python3 -c "import sys; sys.exit(0 if open('$pkg_path', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null || return 1
+        # 2. Checa estrutura completa do pacote (rejeita arquivos truncados/incompletos)
+        if command -v rpm >/dev/null 2>&1; then
+            rpm -qp --nosignature --nodigest "$pkg_path" >/dev/null 2>&1 || return 1
+        fi
+    fi
+    return 0
+}
+
 # Função interna para baixar pacote em paralelo com aria2c (16 conexões) ou wget
 download_package_parallel() {
     local nick="$1"
@@ -142,59 +158,40 @@ download_package_parallel() {
     rm -f "$done_file" "$fail_file"
 
     # Verifica se o arquivo final já existe e é válido
-    if [ -s "$target" ]; then
-        if [[ "$file_name" == *.rpm ]]; then
-            if python3 -c "import sys; sys.exit(0 if open('$target', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
-                echo "100" > "$log_file"
-                touch "$done_file"
-                return 0
-            fi
-        else
-            echo "100" > "$log_file"
-            touch "$done_file"
-            return 0
-        fi
+    if validate_package_file "$target"; then
+        echo "100" > "$log_file"
+        touch "$done_file"
+        return 0
     fi
 
     echo "downloading $nick" > "/tmp/regataos-update/get-pid-$nick.txt"
     rm -f "$part"
 
+    local dl_success=0
     if command -v aria2c >/dev/null 2>&1; then
         aria2c --follow-metalink=mem --metalink-preferred-protocol=https \
             -x 16 -s 16 -j 16 -k 1M --file-allocation=none --check-certificate=false \
             --allow-overwrite=true --auto-file-renaming=false \
             --summary-interval=1 \
             -d "/tmp/regataos-update" -o "$file_name.part" "$url" > "$log_file" 2>&1
-    fi
-
-    # Validação rigorosa do arquivo temporário (.part): se falhou, está vazio ou corrompido, fallback para wget
-    local is_valid=0
-    if [ -s "$part" ]; then
-        if [[ "$file_name" == *.rpm ]]; then
-            if python3 -c "import sys; sys.exit(0 if open('$part', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
-                is_valid=1
-            fi
-        else
-            is_valid=1
+        local aria_status=$?
+        if [ "$aria_status" -eq 0 ] && validate_package_file "$part"; then
+            dl_success=1
         fi
     fi
 
-    if [ "$is_valid" -ne 1 ]; then
+    # Fallback para wget se aria2c falhou ou pacote resultante for inválido/truncado
+    if [ "$dl_success" -ne 1 ]; then
         rm -f "$part"
         wget --no-check-certificate --progress=dot:mega -O "$part" "$url" > "$log_file" 2>&1
-        if [ -s "$part" ]; then
-            if [[ "$file_name" == *.rpm ]]; then
-                if python3 -c "import sys; sys.exit(0 if open('$part', 'rb').read(4) == b'\xed\xab\xee\xdb' else 1)" 2>/dev/null; then
-                    is_valid=1
-                fi
-            else
-                is_valid=1
-            fi
+        local wget_status=$?
+        if [ "$wget_status" -eq 0 ] && validate_package_file "$part"; then
+            dl_success=1
         fi
     fi
 
     # Move atomicamente de .part para o arquivo final apenas se validado com sucesso
-    if [ "$is_valid" -eq 1 ]; then
+    if [ "$dl_success" -eq 1 ]; then
         mv -f "$part" "$target"
         echo "100" > "$log_file"
         touch "$done_file"
@@ -284,8 +281,8 @@ for ((idx=0; idx<${#QUEUED_NICKNAMES[@]}; idx++)); do
         continue
     fi
 
-    if [ ! -s "$target" ] || [ -f "/tmp/regataos-update/download-failed-$nick.txt" ]; then
-        echo "Aviso: Download do pacote $file incompleto ou falhou. Instalação pulada para preservar integridade." >> "/var/log/regataos-logs/regataos-update-$pkg.log"
+    if [ ! -s "$target" ] || [ -f "/tmp/regataos-update/download-failed-$nick.txt" ] || ! validate_package_file "$target"; then
+        echo "Aviso: Download do pacote $file incompleto ou corrompido. Instalação pulada para preservar integridade." >> "/var/log/regataos-logs/regataos-update-$pkg.log"
         sed -i "s/$nick//" "/tmp/regataos-update/downloadable-application.txt" 2>/dev/null
         sed -i '/^$/d' "/tmp/regataos-update/downloadable-application.txt" 2>/dev/null
         continue
@@ -317,6 +314,10 @@ for ((idx=0; idx<${#QUEUED_NICKNAMES[@]}; idx++)); do
             wait "$SYSTEM_DOWNLOAD_PID" 2>/dev/null
         fi
         run_zypper_resilient install --allow-downgrade --replacefiles --auto-agree-with-licenses "$file"
+        zypp_exit=$?
+        if is_zypper_success "$zypp_exit"; then
+            installed_ok=1
+        fi
     fi
 
     # Configurações pós-instalação de GPU / Prime
@@ -329,18 +330,23 @@ for ((idx=0; idx<${#QUEUED_NICKNAMES[@]}; idx++)); do
         /opt/regataos-prime/scripts/apps-hybrid-graphics 2>/dev/null
     fi
 
-    # Atualiza lista de concluídos e limpa estado deste app
+    # Atualiza lista de concluídos apenas se a instalação foi bem-sucedida
     echo "" > "/tmp/regataos-update/installing-application.txt"
-    sed -i "s/$pkg//" "/tmp/regataos-update/apps-list.txt" 2>/dev/null
-    sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt" 2>/dev/null
+    if [ "$installed_ok" -eq 1 ]; then
+        sed -i "s/$pkg//" "/tmp/regataos-update/apps-list.txt" 2>/dev/null
+        sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt" 2>/dev/null
 
-    if ! grep -q "$nick" "/var/log/regataos-logs/updated-apps.txt" 2>/dev/null; then
-        echo "$nick" >> "/var/log/regataos-logs/updated-apps.txt"
-        sed -i '/^$/d' "/var/log/regataos-logs/updated-apps.txt"
+        if ! grep -q "$nick" "/var/log/regataos-logs/updated-apps.txt" 2>/dev/null; then
+            echo "$nick" >> "/var/log/regataos-logs/updated-apps.txt"
+            sed -i '/^$/d' "/var/log/regataos-logs/updated-apps.txt"
+        fi
+
+        echo "$nick" >> "/tmp/regataos-update/updated-apps.txt"
+        sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
+    else
+        echo "Erro: Falha na instalação do pacote $file para o aplicativo $nick." >> "/var/log/regataos-logs/regataos-update-$pkg.log"
+        echo "error" > "/tmp/regataos-update/install-error-$nick.txt"
     fi
-
-    echo "$nick" >> "/tmp/regataos-update/updated-apps.txt"
-    sed -i '/^$/d' "/tmp/regataos-update/updated-apps.txt"
 
     rm -f "/tmp/regataos-update/installation-in-progress.txt"
     rm -f "/tmp/regataos-update/$file"
