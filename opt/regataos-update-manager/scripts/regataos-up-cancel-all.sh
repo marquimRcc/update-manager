@@ -47,6 +47,9 @@ if [ "$1" == "-cancel-checking" ] || [ "$1" == "--check" ]; then
         echo "$restingStatus" > "/tmp/regataos-update/status.txt"
     fi
     echo "1" > "/tmp/regataos-update/already_updated.txt"
+    local_user=$(who | awk '{print $1}' | head -1)
+    [ -z "$local_user" ] && local_user=$(users | awk '{print $1}')
+    [ -n "$local_user" ] && chown -R "$local_user":"$local_user" /tmp/regataos-update 2>/dev/null
     chmod -R 777 /tmp/regataos-update 2>/dev/null
     exit 0
 fi
@@ -203,4 +206,7 @@ else
 fi
 
 echo "1" > "/tmp/regataos-update/already_updated.txt"
+local_user=$(who | awk '{print $1}' | head -1)
+[ -z "$local_user" ] && local_user=$(users | awk '{print $1}')
+[ -n "$local_user" ] && chown -R "$local_user":"$local_user" /tmp/regataos-update 2>/dev/null
 chmod -R 777 /tmp/regataos-update 2>/dev/null
