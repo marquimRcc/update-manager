@@ -48,6 +48,7 @@ cleanup_on_exit() {
             else
                 echo "no-updates" >"/tmp/regataos-update/status.txt"
             fi
+            chmod 777 /tmp/regataos-update/status.txt 2>/dev/null
         fi
     fi
 }

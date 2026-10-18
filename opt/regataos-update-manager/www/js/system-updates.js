@@ -420,6 +420,14 @@ function systemUpdatesProgress() {
 
             const stageTag = document.getElementById('split-circle-stage-tag');
             const stageDesc = document.getElementById('split-circle-stage-desc');
+
+            if (fs.existsSync("/tmp/regataos-update/cancel-checking.txt")) {
+                if (stageTag) stageTag.textContent = 'Cancelando...';
+                if (stageDesc) stageDesc.textContent = 'Cancelando verificação...';
+                if (checkingLabel) checkingLabel.textContent = 'Cancelando verificação...';
+                return;
+            }
+
             if (stageTag) stageTag.textContent = 'Etapa 1: Verificação';
 
             if (currentRepos > 0) {

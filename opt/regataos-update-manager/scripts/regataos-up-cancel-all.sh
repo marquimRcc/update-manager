@@ -6,23 +6,32 @@
 if [ "$1" == "-cancel-checking" ] || [ "$1" == "--check" ]; then
     echo "Cancelando processo de verificação de atualizações..."
 
-    # Interrompe processos de verificação e zypper refresh que estejam rodando como root
+    # Interrompe processos de verificação e zypper que estejam rodando como root
     pkill -TERM -f "regataos-check-up.sh" 2>/dev/null
     pkill -TERM -f "regataos-up.sh" 2>/dev/null
-    pkill -TERM -f "zypper.*refresh" 2>/dev/null
+    pkill -TERM -f "zypper" 2>/dev/null
     pkill -TERM -f "check-update.py" 2>/dev/null
     pkill -TERM -f "alert-update.py" 2>/dev/null
-    sleep 0.3
+    sleep 0.2
     pkill -9 -f "regataos-check-up.sh" 2>/dev/null
     pkill -9 -f "regataos-up.sh" 2>/dev/null
-    pkill -9 -f "zypper.*refresh" 2>/dev/null
+    pkill -9 -f "zypper" 2>/dev/null
 
     # Limpa locks apenas se zypper não estiver mais ativo
     if ! pgrep -f "zypper" >/dev/null 2>&1; then
-        rm -f /var/run/zypp.pid /var/run/zypper.pid 2>/dev/null
+        rm -f /var/run/zypp.pid /var/run/zypper.pid /tmp/regataos-up.lock 2>/dev/null
     fi
 
     rm -f "/tmp/regataos-update/cancel-checking.txt"
+    rm -f "/tmp/regataos-update/all-auto-update.txt"
+    rm -f "/tmp/regataos-update/install-updates.txt"
+    rm -f "/tmp/regataos-update/update-in-progress.txt"
+    rm -f "/tmp/regataos-update/other-updates-in-progress.txt"
+    rm -f "/tmp/regataos-update/update-specific-in-progress.txt"
+    echo "" >"/tmp/regataos-update/downloading-system-update.txt"
+    echo "" >"/tmp/regataos-update/installing-system-update.txt"
+    echo "" >"/tmp/regataos-update/downloadable-application-other-updates.txt"
+    echo "" >"/tmp/regataos-update/installing-application-other-updates.txt"
 
     # Determina o status de repouso correto com base na configuração do usuário
     restingStatus="no-updates"
@@ -32,13 +41,13 @@ if [ "$1" == "-cancel-checking" ] || [ "$1" == "--check" ]; then
         fi
     fi
 
-    if [ -s "/tmp/regataos-update/package-list.txt" ]; then
+    if [ -s "/tmp/regataos-update/package-list.txt" ] || [ -s "/tmp/regataos-update/apps-list.txt" ]; then
         echo "show-updates" > "/tmp/regataos-update/status.txt"
     else
         echo "$restingStatus" > "/tmp/regataos-update/status.txt"
     fi
     echo "1" > "/tmp/regataos-update/already_updated.txt"
-    chmod 777 /tmp/regataos-update/status.txt /tmp/regataos-update/already_updated.txt 2>/dev/null
+    chmod -R 777 /tmp/regataos-update 2>/dev/null
     exit 0
 fi
 
@@ -115,11 +124,12 @@ for pid_file in /tmp/regataos-update/dl-pid-*.txt; do
     fi
 done
 
-# Terminate only aria2c and wget instances spawned for regataos-update
+# Terminate aria2c, wget, zypper, and update scripts
 pkill -TERM -f "aria2c.*regataos-update" 2>/dev/null
 pkill -TERM -f "wget.*regataos-update" 2>/dev/null
-pkill -TERM -f "zypper.*regataos" 2>/dev/null
+pkill -TERM -f "zypper" 2>/dev/null
 pkill -TERM -f "regataos-up" 2>/dev/null
+pkill -TERM -f "regataos-other-up" 2>/dev/null
 
 get_pid=$(cat /tmp/regataos-update/get-pid.txt 2>/dev/null)
 if [ -n "$get_pid" ]; then
@@ -129,7 +139,7 @@ if [ -n "$get_pid" ]; then
     fi
 fi
 
-sleep 0.5
+sleep 0.3
 
 # Force kill any stubborn update-manager processes if still running
 for pid_file in /tmp/regataos-update/dl-pid-*.txt; do
@@ -145,8 +155,9 @@ done
 
 pkill -9 -f "aria2c.*regataos-update" 2>/dev/null
 pkill -9 -f "wget.*regataos-update" 2>/dev/null
-pkill -9 -f "zypper.*regataos" 2>/dev/null
+pkill -9 -f "zypper" 2>/dev/null
 pkill -9 -f "regataos-up" 2>/dev/null
+pkill -9 -f "regataos-other-up" 2>/dev/null
 if [ -n "$get_pid" ]; then
     pid=$(ps -C "$get_pid" 2>/dev/null | awk '{print $1}' | tail -1)
     if is_safe_update_process "$pid"; then
@@ -156,18 +167,40 @@ fi
 
 # Clean up zypp locks only if no Zypper process is actively running
 if ! pgrep -f "zypper" >/dev/null 2>&1; then
-    rm -f /var/run/zypp.pid /var/run/zypper.pid 2>/dev/null
+    rm -f /var/run/zypp.pid /var/run/zypper.pid /tmp/regataos-up.lock 2>/dev/null
 fi
 
 # Return to the initial state of the front end
 echo "" >"/tmp/regataos-update/downloadable-application.txt"
 echo "" >"/tmp/regataos-update/downloadable-application-other-updates.txt"
 echo "" >"/tmp/regataos-update/list-apps-queue.txt"
+echo "" >"/tmp/regataos-update/downloading-system-update.txt"
+echo "" >"/tmp/regataos-update/installing-system-update.txt"
+echo "" >"/tmp/regataos-update/installing-application-other-updates.txt"
 rm -f "/tmp/regataos-update/other-updates-in-progress.txt"
+rm -f "/tmp/regataos-update/update-in-progress.txt"
+rm -f "/tmp/regataos-update/update-specific-in-progress.txt"
+rm -f "/tmp/regataos-update/all-auto-update.txt"
+rm -f "/tmp/regataos-update/install-updates.txt"
 rm -f "/tmp/regataos-update/system-updates-download-complete.txt"
-rm -f "/tmp/regataos-update/downloading-system-update.txt"
-rm -f "/tmp/regataos-update/installing-system-update.txt"
+rm -f "/tmp/regataos-update/stop-all-update.txt"
 
 killall check-update.py 2>/dev/null
 killall install-update.py 2>/dev/null
 kill -KILL $(ps -C "python install-update.py" | awk '{print $1}' | tail -1) 2>/dev/null
+
+# Determina o status correto para o front-end
+if [ -s "/tmp/regataos-update/package-list.txt" ] || [ -s "/tmp/regataos-update/apps-list.txt" ]; then
+    echo "show-updates" > "/tmp/regataos-update/status.txt"
+else
+    restingStatus="no-updates"
+    if [ -f "/tmp/regataos-update/config/regataos-update.conf" ]; then
+        if grep -q "autoupdate=3" "/tmp/regataos-update/config/regataos-update.conf" 2>/dev/null; then
+            restingStatus="never-updates"
+        fi
+    fi
+    echo "$restingStatus" > "/tmp/regataos-update/status.txt"
+fi
+
+echo "1" > "/tmp/regataos-update/already_updated.txt"
+chmod -R 777 /tmp/regataos-update 2>/dev/null

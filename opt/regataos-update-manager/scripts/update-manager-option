@@ -84,12 +84,12 @@ function update3() {
 }
 
 function update_button() {
-    echo "" >"/tmp/regataos-update/installing-application-other-updates.txt"
-    echo "" >"/tmp/regataos-update/downloadable-application-other-updates.txt"
-    echo "" >"/tmp/regataos-update/system-update-installed.txt"
-    echo "" >"/tmp/regataos-update/waiting-for-installation.txt"
-    echo "" >"/tmp/regataos-update/installing-system-update.txt"
-    echo "" >"/tmp/regataos-update/downloading-system-update.txt"
+    rm -f "/tmp/regataos-update/installing-application-other-updates.txt"
+    rm -f "/tmp/regataos-update/downloadable-application-other-updates.txt"
+    rm -f "/tmp/regataos-update/system-update-installed.txt"
+    rm -f "/tmp/regataos-update/waiting-for-installation.txt"
+    rm -f "/tmp/regataos-update/installing-system-update.txt"
+    rm -f "/tmp/regataos-update/downloading-system-update.txt"
 
     ps -C zypper >/dev/null
     if [ $? = 1 ]; then

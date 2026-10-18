@@ -158,11 +158,30 @@ function startAllAutoUpdate() {
 
 // Cancel installation of all updates
 function cancelAllApps() {
+	const cancelUpButton = document.querySelector(".update-all-button2");
+	if (cancelUpButton) {
+		cancelUpButton.style.opacity = "0.5";
+		cancelUpButton.style.pointerEvents = "none";
+		cancelUpButton.textContent = "Cancelando...";
+	}
+
 	const commandLine = 'rm -f "/tmp/regataos-update/all-auto-update.txt"; \
-	rm -f "/tmp/regataos-update/install-updates.txt" \
+	rm -f "/tmp/regataos-update/install-updates.txt"; \
 	echo "" > "/tmp/regataos-update/stop-all-update.txt"; \
 	sudo /opt/regataos-update-manager/scripts/regataos-up-cancel-all.sh';
-	runShellProcess(commandLine);
+	const { exec } = require('child_process');
+	exec(commandLine, function () {
+		if (cancelUpButton) {
+			cancelUpButton.style.opacity = "";
+			cancelUpButton.style.pointerEvents = "";
+		}
+		if (typeof currentStatus === 'function') {
+			currentStatus();
+		}
+		if (typeof applyTranslationPages === 'function') {
+			applyTranslationPages();
+		}
+	});
 }
 
 // Install "other updates"
@@ -238,16 +257,32 @@ function updateSystemOrCancelUpdate() {
 		const activeIndicators = [
 			allAutoUpdate,
 			upSpecificInProgress,
-			otherUpInProgress,
-			"/tmp/regataos-update/downloadable-application-other-updates.txt",
-			"/tmp/regataos-update/installing-application-other-updates.txt",
-			"/tmp/regataos-update/downloading-system-update.txt",
-			"/tmp/regataos-update/installing-system-update.txt"
+			otherUpInProgress
 		];
 		for (const indicator of activeIndicators) {
 			if (fs.existsSync(indicator)) {
 				isUpdating = true;
 				break;
+			}
+		}
+
+		if (!isUpdating) {
+			const contentIndicators = [
+				"/tmp/regataos-update/downloadable-application-other-updates.txt",
+				"/tmp/regataos-update/installing-application-other-updates.txt",
+				"/tmp/regataos-update/downloading-system-update.txt",
+				"/tmp/regataos-update/installing-system-update.txt"
+			];
+			for (const file of contentIndicators) {
+				if (fs.existsSync(file)) {
+					try {
+						const txt = fs.readFileSync(file, "utf8").trim();
+						if (txt.length > 0) {
+							isUpdating = true;
+							break;
+						}
+					} catch (e) { }
+				}
 			}
 		}
 	}
@@ -335,6 +370,10 @@ function cancelCheckingUpdates() {
 	const statusLabel = document.querySelector("#checking-status-label");
 	if (statusLabel) {
 		statusLabel.textContent = "Cancelando verificação...";
+	}
+	const stageDesc = document.querySelector("#split-circle-stage-desc");
+	if (stageDesc) {
+		stageDesc.textContent = "Cancelando verificação...";
 	}
 
 	// Sinaliza cancelamento via arquivo
