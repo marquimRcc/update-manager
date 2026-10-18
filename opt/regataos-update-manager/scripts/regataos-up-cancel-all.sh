@@ -1,6 +1,46 @@
 #!/bin/bash
 
-# This script is used to cancel the update of all applications
+# This script is used to cancel the update of all applications or check updates
+
+# Handle check-updates cancellation specifically (runs with root permissions via sudoers)
+if [ "$1" == "-cancel-checking" ] || [ "$1" == "--check" ]; then
+    echo "Cancelando processo de verificação de atualizações..."
+
+    # Interrompe processos de verificação e zypper refresh que estejam rodando como root
+    pkill -TERM -f "regataos-check-up.sh" 2>/dev/null
+    pkill -TERM -f "regataos-up.sh" 2>/dev/null
+    pkill -TERM -f "zypper.*refresh" 2>/dev/null
+    pkill -TERM -f "check-update.py" 2>/dev/null
+    pkill -TERM -f "alert-update.py" 2>/dev/null
+    sleep 0.3
+    pkill -9 -f "regataos-check-up.sh" 2>/dev/null
+    pkill -9 -f "regataos-up.sh" 2>/dev/null
+    pkill -9 -f "zypper.*refresh" 2>/dev/null
+
+    # Limpa locks apenas se zypper não estiver mais ativo
+    if ! pgrep -f "zypper" >/dev/null 2>&1; then
+        rm -f /var/run/zypp.pid /var/run/zypper.pid 2>/dev/null
+    fi
+
+    rm -f "/tmp/regataos-update/cancel-checking.txt"
+
+    # Determina o status de repouso correto com base na configuração do usuário
+    restingStatus="no-updates"
+    if [ -f "/tmp/regataos-update/config/regataos-update.conf" ]; then
+        if grep -q "autoupdate=3" "/tmp/regataos-update/config/regataos-update.conf" 2>/dev/null; then
+            restingStatus="never-updates"
+        fi
+    fi
+
+    if [ -s "/tmp/regataos-update/package-list.txt" ]; then
+        echo "show-updates" > "/tmp/regataos-update/status.txt"
+    else
+        echo "$restingStatus" > "/tmp/regataos-update/status.txt"
+    fi
+    echo "1" > "/tmp/regataos-update/already_updated.txt"
+    chmod 777 /tmp/regataos-update/status.txt /tmp/regataos-update/already_updated.txt 2>/dev/null
+    exit 0
+fi
 
 # Cancel updating all apps
 if test -e "/tmp/regataos-update/all-auto-update.txt"; then

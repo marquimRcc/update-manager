@@ -108,16 +108,24 @@ function search_update() {
                         auto_up_config=$(grep -r "autoupdate=" /tmp/regataos-update/config/regataos-update.conf | cut -d"=" -f 2-)
                         if [[ "$force_check" == "1" || "$1" == "-check-now" ]]; then
                             echo "check-updates" >"/tmp/regataos-update/status.txt"
+                            chmod 777 "/tmp/regataos-update/status.txt" 2>/dev/null
                         elif [[ $(echo "$auto_up_config") == *"3"* ]]; then
                             echo "never-updates" >"/tmp/regataos-update/status.txt"
+                            chmod 777 "/tmp/regataos-update/status.txt" 2>/dev/null
                             exit 0
                         else
-                            check_status=$(cat "/tmp/regataos-update/status.txt")
+                            check_status=$(cat "/tmp/regataos-update/status.txt" 2>/dev/null)
                             if [[ $(echo "$check_status") == *"show-updates"* ]]; then
                                 exit 0
                             else
                                 echo "check-updates" >"/tmp/regataos-update/status.txt"
+                                chmod 777 "/tmp/regataos-update/status.txt" 2>/dev/null
                             fi
+                        fi
+
+                        if [ -f "/tmp/regataos-update/cancel-checking.txt" ]; then
+                            rm -f "/tmp/regataos-update/cancel-checking.txt"
+                            exit 0
                         fi
 
                         # Release locks and refresh repositories
@@ -137,6 +145,11 @@ function search_update() {
                                 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Aviso: zypper refresh retornou código $ref_status (alguns repositórios podem estar temporariamente inacessíveis)."
                             fi
                         } 2>&1 | tee "/var/log/regataos-logs/regataos-refresh-repo.log"
+
+                        if [ -f "/tmp/regataos-update/cancel-checking.txt" ]; then
+                            rm -f "/tmp/regataos-update/cancel-checking.txt"
+                            exit 0
+                        fi
 
                         {
                             export LC_ALL="en_US.UTF-8"
@@ -252,6 +265,7 @@ function search_update() {
                                     echo "" >"/tmp/regataos-update/already_updated.txt"
                                     if [[ "$force_check" == "1" || $(echo "$auto_up_config") == *"2"* || $(echo "$auto_up_config") == *"1"* ]]; then
                                         echo "show-updates" >"/tmp/regataos-update/status.txt"
+                                        chmod 777 "/tmp/regataos-update/status.txt" 2>/dev/null
                                     fi
                                 fi
                             fi
@@ -260,6 +274,7 @@ function search_update() {
                         if test ! -e "/tmp/regataos-update/number-apps.txt"; then
                             if test ! -e "/tmp/regataos-update/number-packages.txt"; then
                                 echo "no-updates" >"/tmp/regataos-update/status.txt"
+                                chmod 777 "/tmp/regataos-update/status.txt" 2>/dev/null
                                 killall alert-update.py
                                 killall install-update.py
                                 killall check-update.py
