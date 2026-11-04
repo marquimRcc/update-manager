@@ -262,6 +262,27 @@ function applyTranslationPages() {
                 const sub = document.querySelector(".general-setting-subtitle");
                 if (sub) sub.innerHTML = data[i].settings.generalTab.subtitle;
 
+                const freqTitle = document.querySelector(".frequency-title-text");
+                if (freqTitle && data[i].settings.generalTab.frequencyTitle) {
+                    freqTitle.innerHTML = data[i].settings.generalTab.frequencyTitle;
+                }
+                const freqDaily = document.querySelector(".freq-text-daily");
+                if (freqDaily && data[i].settings.generalTab.freqDaily) {
+                    freqDaily.innerHTML = data[i].settings.generalTab.freqDaily;
+                }
+                const freqWeekly = document.querySelector(".freq-text-weekly");
+                if (freqWeekly && data[i].settings.generalTab.freqWeekly) {
+                    freqWeekly.innerHTML = data[i].settings.generalTab.freqWeekly;
+                }
+                const freqMonthly = document.querySelector(".freq-text-monthly");
+                if (freqMonthly && data[i].settings.generalTab.freqMonthly) {
+                    freqMonthly.innerHTML = data[i].settings.generalTab.freqMonthly;
+                }
+                const freqSixMonths = document.querySelector(".freq-text-sixmonths");
+                if (freqSixMonths && data[i].settings.generalTab.freqSixMonths) {
+                    freqSixMonths.innerHTML = data[i].settings.generalTab.freqSixMonths;
+                }
+
                 const onTitle = document.querySelector(".up-on-card-title");
                 if (onTitle) onTitle.innerHTML = data[i].settings.generalTab.autoTitle;
                 const onDesc = document.querySelector(".up-on-card-desc");

@@ -61,7 +61,12 @@
                 "checkTitle": "Check for updates only",
                 "checkDesc": "Checks if new packages are available and notifies you so you can authorize the download when convenient.",
                 "neverTitle": "Never check for updates",
-                "neverDesc": "Disables automatic checks. The system will only search for updates when you manually click to check."
+                "neverDesc": "Disables automatic checks. The system will only search for updates when you manually click to check.",
+                "frequencyTitle": "Automatic updates frequency:",
+                "freqDaily": "Every day",
+                "freqWeekly": "Once a week",
+                "freqMonthly": "Once a month",
+                "freqSixMonths": "Every six months"
             },
             "mirrorTab": {
                 "activeTag": "Active Server",

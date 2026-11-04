@@ -16,8 +16,11 @@ fi
 # Apply the automatic update configuration
 function update1() {
     if test -e "$HOME/.config/regataos-update/regataos-update.conf"; then
-        autoupdate_value=$(grep -r "autoupdate=" $HOME/.config/regataos-update/regataos-update.conf | cut -d"=" -f 2-)
-        sed -i "s/$autoupdate_value/1/" "$HOME/.config/regataos-update/regataos-update.conf"
+        if grep -q "^autoupdate=" "$HOME/.config/regataos-update/regataos-update.conf"; then
+            sed -i "s/^autoupdate=.*/autoupdate=1/" "$HOME/.config/regataos-update/regataos-update.conf"
+        else
+            echo "autoupdate=1" >>"$HOME/.config/regataos-update/regataos-update.conf"
+        fi
     else
         echo "autoupdate=1" >"$HOME/.config/regataos-update/regataos-update.conf"
     fi
@@ -42,8 +45,11 @@ function update1() {
 
 function update2() {
     if test -e "$HOME/.config/regataos-update/regataos-update.conf"; then
-        autoupdate_value=$(grep -r "autoupdate=" $HOME/.config/regataos-update/regataos-update.conf | cut -d"=" -f 2-)
-        sed -i "s/$autoupdate_value/2/" "$HOME/.config/regataos-update/regataos-update.conf"
+        if grep -q "^autoupdate=" "$HOME/.config/regataos-update/regataos-update.conf"; then
+            sed -i "s/^autoupdate=.*/autoupdate=2/" "$HOME/.config/regataos-update/regataos-update.conf"
+        else
+            echo "autoupdate=2" >>"$HOME/.config/regataos-update/regataos-update.conf"
+        fi
     else
         echo "autoupdate=2" >"$HOME/.config/regataos-update/regataos-update.conf"
     fi
@@ -68,8 +74,11 @@ function update2() {
 
 function update3() {
     if test -e "$HOME/.config/regataos-update/regataos-update.conf"; then
-        autoupdate_value=$(grep -r "autoupdate=" $HOME/.config/regataos-update/regataos-update.conf | cut -d"=" -f 2-)
-        sed -i "s/$autoupdate_value/3/" "$HOME/.config/regataos-update/regataos-update.conf"
+        if grep -q "^autoupdate=" "$HOME/.config/regataos-update/regataos-update.conf"; then
+            sed -i "s/^autoupdate=.*/autoupdate=3/" "$HOME/.config/regataos-update/regataos-update.conf"
+        else
+            echo "autoupdate=3" >>"$HOME/.config/regataos-update/regataos-update.conf"
+        fi
     else
         echo "autoupdate=3" >"$HOME/.config/regataos-update/regataos-update.conf"
     fi
@@ -81,6 +90,25 @@ function update3() {
     sudo /opt/regataos-update-manager/scripts/regataos-up-cancel-all.sh
     sudo /opt/regataos-update-manager/scripts/regataos-up.sh -stop-up
     echo "never-updates" >"/tmp/regataos-update/status.txt"
+}
+
+# Apply update frequency configuration
+function set_frequency() {
+    local freq="$1"
+    if test ! -e "$HOME/.config/regataos-update"; then
+        mkdir -p "$HOME/.config/regataos-update/"
+    fi
+
+    if test -e "$HOME/.config/regataos-update/regataos-update.conf"; then
+        if grep -q "^frequency=" "$HOME/.config/regataos-update/regataos-update.conf"; then
+            sed -i "s/^frequency=.*/frequency=$freq/" "$HOME/.config/regataos-update/regataos-update.conf"
+        else
+            echo "frequency=$freq" >>"$HOME/.config/regataos-update/regataos-update.conf"
+        fi
+    else
+        echo "autoupdate=1" >"$HOME/.config/regataos-update/regataos-update.conf"
+        echo "frequency=$freq" >>"$HOME/.config/regataos-update/regataos-update.conf"
+    fi
 }
 
 function update_button() {
@@ -115,6 +143,18 @@ case $1 in
     ;;
 "-set-mirror")
     /opt/regataos-update-manager/scripts/set-mirror.sh "$2"
+    ;;
+"-frequency-daily")
+    set_frequency "daily"
+    ;;
+"-frequency-weekly")
+    set_frequency "weekly"
+    ;;
+"-frequency-monthly")
+    set_frequency "monthly"
+    ;;
+"-frequency-sixmonths")
+    set_frequency "sixmonths"
     ;;
 *)
     echo "Invalid option!"

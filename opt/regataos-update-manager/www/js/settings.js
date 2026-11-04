@@ -3,31 +3,133 @@ setTimeout(function () {
     document.getElementById("loadscreen").style.display = "none";
 }, 1000);
 
+// Safe Node.js modules for NW.js and browser fallback
+let fsModule, pathModule, childProcessModule;
+try {
+    fsModule = typeof require !== 'undefined' ? require('fs') : null;
+    pathModule = typeof require !== 'undefined' ? require('path') : null;
+    childProcessModule = typeof require !== 'undefined' ? require('child_process') : null;
+} catch (e) {
+    fsModule = null;
+    pathModule = null;
+    childProcessModule = null;
+}
+
 // Automatic update
 function checkAutoUpdateConfig() {
-    const fs = require('fs');
-    const regataosUpdateConf = "/tmp/regataos-update/config/regataos-update.conf";
-    const updateConfigButton = document.querySelector("#select-update-config span");
-    if (fs.existsSync(regataosUpdateConf)) {
-        const checkUpdateConf = fs.readFileSync(regataosUpdateConf, "utf8");
-        if (checkUpdateConf.includes("1")) {
-            updateConfigButton.classList.add("up-on");
-        } else if (checkUpdateConf.includes("2")) {
-            updateConfigButton.classList.add("up-only");
-        } else if (checkUpdateConf.includes("3")) {
-            updateConfigButton.classList.add("up-off");
+    let regataosUpdateConf = "/tmp/regataos-update/config/regataos-update.conf";
+    if (pathModule && typeof process !== 'undefined' && process.env) {
+        const userHomeConf = pathModule.join(process.env.HOME || "", ".config/regataos-update/regataos-update.conf");
+        if (fsModule && !fsModule.existsSync(regataosUpdateConf) && fsModule.existsSync(userHomeConf)) {
+            regataosUpdateConf = userHomeConf;
         }
-    } else {
-        updateConfigButton.classList.add("up-only");
     }
+
+    const updateConfigButton = document.querySelector("#select-update-config span");
+    const freqContainer = document.getElementById("frequency-settings-container");
+    let isAuto = true;
+
+    if (fsModule && fsModule.existsSync(regataosUpdateConf)) {
+        const checkUpdateConf = fsModule.readFileSync(regataosUpdateConf, "utf8");
+        const autoMatch = checkUpdateConf.match(/^autoupdate=(\d+)/m);
+        const autoVal = autoMatch ? autoMatch[1] : (checkUpdateConf.includes("1") ? "1" : (checkUpdateConf.includes("2") ? "2" : (checkUpdateConf.includes("3") ? "3" : "")));
+
+        if (updateConfigButton) {
+            updateConfigButton.className = "";
+            if (autoVal === "1") {
+                updateConfigButton.classList.add("up-on");
+                isAuto = true;
+            } else if (autoVal === "2") {
+                updateConfigButton.classList.add("up-only");
+                isAuto = false;
+            } else if (autoVal === "3") {
+                updateConfigButton.classList.add("up-off");
+                isAuto = false;
+            }
+        }
+    } else if (updateConfigButton) {
+        if (updateConfigButton.classList.contains("up-only") || updateConfigButton.classList.contains("up-off")) {
+            isAuto = false;
+        } else {
+            updateConfigButton.classList.add("up-on");
+            isAuto = true;
+        }
+    }
+
+    if (freqContainer) {
+        freqContainer.style.display = isAuto ? "flex" : "none";
+    }
+
+    checkFrequencyConfig();
 }
 checkAutoUpdateConfig();
 
-// Choose gpu to render
+// Choose auto update policy
 function selectAutoUpdate(setting) {
-    const exec = require('child_process').exec;
-    const commandLine = `/opt/regataos-update-manager/scripts/update-manager-option -update-${setting}`;
-    exec(commandLine, function (error, call, errlog) { });
+    if (childProcessModule) {
+        const commandLine = `/opt/regataos-update-manager/scripts/update-manager-option -update-${setting}`;
+        childProcessModule.exec(commandLine, function (error, call, errlog) { });
+    }
+
+    const freqContainer = document.getElementById("frequency-settings-container");
+    if (freqContainer) {
+        freqContainer.style.display = (setting === "1") ? "flex" : "none";
+    }
+}
+
+// Frequency selection (Opção 2 - Pílulas)
+function checkFrequencyConfig() {
+    let regataosUpdateConf = "/tmp/regataos-update/config/regataos-update.conf";
+    if (pathModule && typeof process !== 'undefined' && process.env) {
+        const userHomeConf = pathModule.join(process.env.HOME || "", ".config/regataos-update/regataos-update.conf");
+        if (fsModule && !fsModule.existsSync(regataosUpdateConf) && fsModule.existsSync(userHomeConf)) {
+            regataosUpdateConf = userHomeConf;
+        }
+    }
+
+    let freq = "daily";
+    if (fsModule && fsModule.existsSync(regataosUpdateConf)) {
+        const checkUpdateConf = fsModule.readFileSync(regataosUpdateConf, "utf8");
+        const freqMatch = checkUpdateConf.match(/^frequency=([a-zA-Z0-9_-]+)/m);
+        if (freqMatch && freqMatch[1]) {
+            freq = freqMatch[1].trim();
+        }
+    }
+
+    const pills = document.querySelectorAll(".freq-pill");
+    pills.forEach(pill => {
+        pill.classList.remove("active");
+        const svg = pill.querySelector(".freq-check-icon");
+        if (svg) svg.style.display = "none";
+    });
+
+    const activePill = document.getElementById(`freq-${freq}`);
+    if (activePill) {
+        activePill.classList.add("active");
+        const svg = activePill.querySelector(".freq-check-icon");
+        if (svg) svg.style.display = "inline-block";
+    }
+}
+
+function selectFrequency(freq) {
+    if (childProcessModule) {
+        const commandLine = `/opt/regataos-update-manager/scripts/update-manager-option -frequency-${freq}`;
+        childProcessModule.exec(commandLine, function (error, call, errlog) { });
+    }
+
+    const pills = document.querySelectorAll(".freq-pill");
+    pills.forEach(pill => {
+        pill.classList.remove("active");
+        const svg = pill.querySelector(".freq-check-icon");
+        if (svg) svg.style.display = "none";
+    });
+
+    const activePill = document.getElementById(`freq-${freq}`);
+    if (activePill) {
+        activePill.classList.add("active");
+        const svg = activePill.querySelector(".freq-check-icon");
+        if (svg) svg.style.display = "inline-block";
+    }
 }
 
 // Functions for buttons with drop-down menu.

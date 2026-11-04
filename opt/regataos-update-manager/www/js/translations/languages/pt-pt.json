@@ -61,7 +61,12 @@
                 "checkTitle": "Apenas procurar atualizações",
                 "checkDesc": "Verifica se há novos pacotes e exibe uma notificação para autorizar a transferência quando quiser.",
                 "neverTitle": "Nunca procurar",
-                "neverDesc": "Desativa consultas automáticas. O sistema só procurará atualizações se clicar manualmente em verificar."
+                "neverDesc": "Desativa consultas automáticas. O sistema só procurará atualizações se clicar manualmente em verificar.",
+                "frequencyTitle": "Frequência das atualizações automáticas:",
+                "freqDaily": "Todos os dias",
+                "freqWeekly": "Uma vez por semana",
+                "freqMonthly": "Uma vez por mês",
+                "freqSixMonths": "A cada seis meses"
             },
             "mirrorTab": {
                 "activeTag": "Servidor Ativo",
