@@ -9,6 +9,9 @@ rm -f /tmp/regataos-update/*.rpm
 
 # Detect system language
 user=$(users | awk '{print $1}')
+if [ -z "$HOME" ]; then
+    HOME="/home/$user"
+fi
 if test -e "/home/$user/.config/plasma-localerc"; then
     language=$(grep -r LANGUAGE= "/home/$user/.config/plasma-localerc" | cut -d"=" -f 2- | cut -d":" -f -1 | tr [A-Z] [a-z] | sed 's/_/-/')
     if [ -z $language ]; then
@@ -112,6 +115,10 @@ function should_run_auto_update() {
         last=$(cat "$timestamp_file" 2>/dev/null || echo 0)
     fi
 
+    if ! [[ "$last" =~ ^[0-9]+$ ]]; then
+        last=0
+    fi
+
     local elapsed=$(( now - last ))
     if [ $elapsed -ge $min_interval ]; then
         return 0
@@ -193,8 +200,6 @@ else
             if ! should_run_auto_update; then
                 echo "Skipping automatic check: update frequency interval not elapsed yet."
                 run_check=0
-                echo "updated" >"/tmp/regataos-update/status.txt"
-                chmod 777 "/tmp/regataos-update/status.txt" 2>/dev/null
             fi
         elif [[ $(echo "$auto_up_config") == *"3"* ]]; then
             run_check=0
@@ -205,101 +210,111 @@ else
             if [[ $(echo "$auto_up_config") == *"1"* ]]; then
                 date +%s >"$HOME/.config/regataos-update/last-autoupdate-timestamp"
             fi
-        fi
 
-        # Verify that the first update check is complete
-        if test -e "/tmp/regataos-update/package-list.txt"; then
-            sed -i '/^$/d' "/tmp/regataos-update/package-list.txt"
-            number_packages=$(wc -l /tmp/regataos-update/package-list.txt | awk '{print $1}')
-            if [ $(echo $number_packages) -ge 1 ]; then
-                echo "" >"/tmp/regataos-update/already_updated.txt"
-            fi
-        elif test -e "/tmp/regataos-update/apps-list.txt"; then
-            sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt"
-            number_apps=$(wc -l /tmp/regataos-update/apps-list.txt | awk '{print $1}')
-            if [ $(echo $number_apps) -ge 1 ]; then
-                echo "" >"/tmp/regataos-update/already_updated.txt"
-            fi
-        else
-            echo "No updates found!"
-        fi
-
-        # Show number of updates and activate the icon in the system tray
-        if test -e "/tmp/regataos-update/already_updated.txt"; then
-            # Check update manager configuration
-            auto_up_config=$(grep -r "autoupdate=" $HOME/.config/regataos-update/regataos-update.conf | cut -d"=" -f 2-)
-            # Make sure the first automatic system update is enabled by default
-            # to update the system automatically on the first system boot.
-            if test -e "/usr/share/regataos/first-update.txt"; then
-                if [[ $(echo "$auto_up_config") == *"2"* ]]; then
-                    sed -i "s/autoupdate=2/autoupdate=1/" "$HOME/.config/regataos-update/regataos-update.conf"
+            # Verify that the first update check is complete
+            if test -e "/tmp/regataos-update/package-list.txt"; then
+                sed -i '/^$/d' "/tmp/regataos-update/package-list.txt"
+                number_packages=$(wc -l /tmp/regataos-update/package-list.txt | awk '{print $1}')
+                if [ $(echo $number_packages) -ge 1 ]; then
+                    echo "" >"/tmp/regataos-update/already_updated.txt"
                 fi
+            elif test -e "/tmp/regataos-update/apps-list.txt"; then
+                sed -i '/^$/d' "/tmp/regataos-update/apps-list.txt"
+                number_apps=$(wc -l /tmp/regataos-update/apps-list.txt | awk '{print $1}')
+                if [ $(echo $number_apps) -ge 1 ]; then
+                    echo "" >"/tmp/regataos-update/already_updated.txt"
+                fi
+            else
+                echo "No updates found!"
             fi
 
-            if [[ $(echo "$auto_up_config") == *"1"* ]]; then
-                if test -e "/tmp/regataos-update/apps-list.txt"; then
-                    if test ! -e "/tmp/regataos-update/updated-apps.txt"; then
-                        echo "" >"/tmp/regataos-update/updated-apps.txt"
+            # Show number of updates and activate the icon in the system tray
+            if test -e "/tmp/regataos-update/already_updated.txt"; then
+                # Check update manager configuration
+                auto_up_config=$(grep -r "autoupdate=" $HOME/.config/regataos-update/regataos-update.conf | cut -d"=" -f 2-)
+                # Make sure the first automatic system update is enabled by default
+                # to update the system automatically on the first system boot.
+                if test -e "/usr/share/regataos/first-update.txt"; then
+                    if [[ $(echo "$auto_up_config") == *"2"* ]]; then
+                        sed -i "s/autoupdate=2/autoupdate=1/" "$HOME/.config/regataos-update/regataos-update.conf"
                     fi
+                fi
 
-                    for i in /opt/regataos-store/apps-list/*.json; do
-                        # Capture information about the package that will be downloaded and installed
-                        app_nickname="$(grep -R '"nickname":' $i | awk '{print $2}' | sed 's/"\|,//g')"
-                        package_name="$(grep -R '"package":' $i | awk '{print $2}' | sed 's/"\|,//g')"
-
-                        if [[ $(grep -r "$package_name" "/tmp/regataos-update/apps-list.txt") == *"$package_name"* ]]; then
-                            echo "$app_nickname" >>"/tmp/regataos-update/list-apps-queue.txt"
+                if [[ $(echo "$auto_up_config") == *"1"* ]]; then
+                    if test -e "/tmp/regataos-update/apps-list.txt"; then
+                        if test ! -e "/tmp/regataos-update/updated-apps.txt"; then
+                            echo "" >"/tmp/regataos-update/updated-apps.txt"
                         fi
-                    done
 
-                    sed -i '/^$/d' "/tmp/regataos-update/list-apps-queue.txt"
-                    echo "installing-updates" >"/tmp/regataos-update/status.txt"
+                        for i in /opt/regataos-store/apps-list/*.json; do
+                            # Capture information about the package that will be downloaded and installed
+                            app_nickname="$(grep -R '"nickname":' $i | awk '{print $2}' | sed 's/"\|,//g')"
+                            package_name="$(grep -R '"package":' $i | awk '{print $2}' | sed 's/"\|,//g')"
 
-                    rm -f "/tmp/regataos-update/all-auto-update.txt"
-                    rm -f "/tmp/regataos-update/install-updates.txt"
-                    rm -f "/tmp/regataos-update/stop-all-update.txt"
+                            if [[ $(grep -r "$package_name" "/tmp/regataos-update/apps-list.txt") == *"$package_name"* ]]; then
+                                echo "$app_nickname" >>"/tmp/regataos-update/list-apps-queue.txt"
+                            fi
+                        done
 
-                    install_updates &
-                    sudo /opt/regataos-update-manager/scripts/regataos-up-all.sh
+                        sed -i '/^$/d' "/tmp/regataos-update/list-apps-queue.txt"
+                        echo "installing-updates" >"/tmp/regataos-update/status.txt"
 
-                    if test ! -e "/tmp/regataos-update/stop-all-update.txt"; then
-                        /bin/bash $scriptNotify -upd-system
+                        rm -f "/tmp/regataos-update/all-auto-update.txt"
+                        rm -f "/tmp/regataos-update/install-updates.txt"
+                        rm -f "/tmp/regataos-update/stop-all-update.txt"
+
+                        install_updates &
+                        sudo /opt/regataos-update-manager/scripts/regataos-up-all.sh
+
+                        if test ! -e "/tmp/regataos-update/stop-all-update.txt"; then
+                            /bin/bash $scriptNotify -upd-system
+                        fi
+                    else
+                        if test ! -e "/tmp/regataos-update/updated-apps.txt"; then
+                            echo "" >"/tmp/regataos-update/updated-apps.txt"
+                        fi
+
+                        echo "installing-updates" >"/tmp/regataos-update/status.txt"
+                        echo "other-updates" >"/tmp/regataos-update/list-apps-queue.txt"
+                        rm -f "/tmp/regataos-update/all-auto-update.txt"
+                        rm -f "/tmp/regataos-update/install-updates.txt"
+                        rm -f "/tmp/regataos-update/stop-all-update.txt"
+
+                        install_updates &
+                        sudo /opt/regataos-update-manager/scripts/regataos-up-other-up.sh
+
+                        if test ! -e "/tmp/regataos-update/stop-all-update.txt"; then
+                            /bin/bash $scriptNotify -upd-system
+                        fi
                     fi
+                elif [[ $(echo "$auto_up_config") == *"2"* ]]; then
+                    echo "show-updates" >"/tmp/regataos-update/status.txt"
+                    alert_updates
+                elif [[ $(echo "$auto_up_config") == *"3"* ]]; then
+                    echo "Nothing to do..."
                 else
-                    if test ! -e "/tmp/regataos-update/updated-apps.txt"; then
-                        echo "" >"/tmp/regataos-update/updated-apps.txt"
-                    fi
-
-                    echo "installing-updates" >"/tmp/regataos-update/status.txt"
-                    echo "other-updates" >"/tmp/regataos-update/list-apps-queue.txt"
-                    rm -f "/tmp/regataos-update/all-auto-update.txt"
-                    rm -f "/tmp/regataos-update/install-updates.txt"
-                    rm -f "/tmp/regataos-update/stop-all-update.txt"
-
-                    install_updates &
-                    sudo /opt/regataos-update-manager/scripts/regataos-up-other-up.sh
-
-                    if test ! -e "/tmp/regataos-update/stop-all-update.txt"; then
-                        /bin/bash $scriptNotify -upd-system
-                    fi
+                    echo "Nothing to do..."
                 fi
-            elif [[ $(echo "$auto_up_config") == *"2"* ]]; then
-                echo "show-updates" >"/tmp/regataos-update/status.txt"
-                alert_updates
-            elif [[ $(echo "$auto_up_config") == *"3"* ]]; then
-                echo "Nothing to do..."
             else
-                echo "Nothing to do..."
+                if [[ $(echo "$auto_up_config") == *"1"* ]]; then
+                    no_updates
+                elif [[ $(echo "$auto_up_config") == *"2"* ]]; then
+                    no_updates
+                elif [[ $(echo "$auto_up_config") == *"3"* ]]; then
+                    echo "Nothing to do..."
+                else
+                    echo "Nothing to do..."
+                fi
             fi
         else
+            # Check was skipped: frequency interval has not elapsed yet (or autoupdate=3)
+            killall check-update.py 2>/dev/null
             if [[ $(echo "$auto_up_config") == *"1"* ]]; then
-                no_updates
-            elif [[ $(echo "$auto_up_config") == *"2"* ]]; then
-                no_updates
+                echo "updated" >"/tmp/regataos-update/status.txt"
+                chmod 777 "/tmp/regataos-update/status.txt" 2>/dev/null
             elif [[ $(echo "$auto_up_config") == *"3"* ]]; then
-                echo "Nothing to do..."
-            else
-                echo "Nothing to do..."
+                echo "never-updates" >"/tmp/regataos-update/status.txt"
+                chmod 777 "/tmp/regataos-update/status.txt" 2>/dev/null
             fi
         fi
 
